@@ -133,3 +133,4 @@ Entries discovered by the Agent during task execution should follow this format:
   - HueSaturationPicker 色相滑杆的 value 是 HSV 色相角（0~360°），必须显式 `valueRange = 0f..360f`；漏设则落到 Slider 默认 0f..1f 范围，色相滑杆无法正常工作
   - 「莫奈配色」=莫奈系列预设调色板（印象派睡莲柔和色调），不是系统动态取色/Material You；实现为 PaletteId.Monet + PaletteSeeds 条目（MonetLight/DarkPrimary 等常量在 ui/liquid/theme/Color.kt）即可，勿接入 dynamicColorScheme
   - 移除动态取色链路要同步清理四处：LiquidUITheme 的 useDynamicColors 参数与 colorScheme 判定、ExpiryGuardTheme 的 monetEnabled 参数、MainActivity 的 KEY_MONET/monetFlow、SettingsViewModel 的 KEY_MONET_ENABLED/isMonetEnabled/toggleMonet 与 SettingsScreen 的 switch_monet 卡片
+  - GitHub Release 源码包文件名必须用 ASCII（`_source.zip`），softprops/action-gh-release@v2 上传中文名（`_源码.zip`）会报 `Error creating asset temp dir` 导致整个 CI 步骤失败；workflow 里 Package source 步骤的 zip 名与 Create GitHub Release 的 files/body 引用都要同步改
