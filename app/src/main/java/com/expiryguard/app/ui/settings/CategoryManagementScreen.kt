@@ -3,12 +3,11 @@ package com.expiryguard.app.ui.settings
 import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,24 +20,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -53,14 +45,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.expiryguard.app.data.db.entity.CategoryEntity
+import com.expiryguard.app.ui.components.EmptyState
 import com.expiryguard.app.ui.components.GlassCard
-import com.expiryguard.app.ui.components.GradientBackground
 import com.expiryguard.app.ui.components.GlassTopAppBar
-import com.expiryguard.app.ui.theme.Gray500
+import com.expiryguard.app.ui.components.GradientBackground
+import com.expiryguard.app.ui.liquid.components.GlassDialog
+import com.expiryguard.app.ui.liquid.components.GlassIconButton
+import com.expiryguard.app.ui.liquid.components.GlassTextField
 import com.expiryguard.app.ui.theme.Red500
 
 /**
@@ -90,12 +84,11 @@ fun CategoryManagementScreen(
             GlassTopAppBar(
                 title = { Text("分类管理") },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "返回"
-                        )
-                    }
+                    GlassIconButton(
+                        icon = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "返回",
+                        onClick = onNavigateBack
+                    )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent
@@ -103,16 +96,12 @@ fun CategoryManagementScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
+            GlassIconButton(
+                icon = Icons.Default.Add,
+                contentDescription = "添加分类",
                 onClick = { viewModel.showAddDialog() },
-                containerColor = MaterialTheme.colorScheme.primary
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "添加分类",
-                    tint = MaterialTheme.colorScheme.onPrimary
-                )
-            }
+                tint = MaterialTheme.colorScheme.primary
+            )
         },
         containerColor = Color.Transparent
     ) { innerPadding ->
@@ -133,10 +122,9 @@ fun CategoryManagementScreen(
                         .padding(innerPadding),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "暂无分类，点击右下角 + 添加",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = Gray500
+                    EmptyState(
+                        message = "暂无分类，点击右下角 + 添加",
+                        icon = Icons.Default.Add
                     )
                 }
             } else {
@@ -146,7 +134,7 @@ fun CategoryManagementScreen(
                         .padding(innerPadding)
                         .padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    contentPadding = PaddingValues(
                         top = 8.dp,
                         bottom = 88.dp
                     )
@@ -176,26 +164,17 @@ fun CategoryManagementScreen(
 
     // 删除确认对话框
     showDeleteConfirm?.let { category ->
-        AlertDialog(
+        GlassDialog(
             onDismissRequest = { showDeleteConfirm = null },
-            title = { Text("确认删除") },
-            text = { Text("确定要删除分类「${category.name}」吗？此操作不可恢复。") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.deleteCategory(category)
-                        showDeleteConfirm = null
-                    }
-                ) {
-                    Text("删除", color = Red500)
-                }
+            title = "确认删除",
+            onConfirm = {
+                viewModel.deleteCategory(category)
+                showDeleteConfirm = null
             },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = null }) {
-                    Text("取消")
-                }
-            }
-        )
+            confirmText = "删除"
+        ) {
+            Text("确定要删除分类「${category.name}」吗？此操作不可恢复。")
+        }
     }
 }
 
@@ -245,30 +224,20 @@ private fun CategoryCard(
             )
 
             // 编辑按钮
-            IconButton(
+            GlassIconButton(
+                icon = Icons.Default.Edit,
+                contentDescription = "编辑",
                 onClick = onClick,
-                modifier = Modifier.size(32.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = "编辑",
-                    modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
+                tint = MaterialTheme.colorScheme.primary
+            )
 
             // 删除按钮
-            IconButton(
+            GlassIconButton(
+                icon = Icons.Default.Delete,
+                contentDescription = "删除",
                 onClick = onDelete,
-                modifier = Modifier.size(32.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "删除",
-                    modifier = Modifier.size(18.dp),
-                    tint = Red500
-                )
-            }
+                tint = Red500
+            )
         }
     }
 }
@@ -284,38 +253,20 @@ private fun CategoryEditDialog(
     onSave: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
+    GlassDialog(
         onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = if (isEditing) "编辑分类" else "添加分类",
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = onNameChange,
-                    label = { Text("分类名称") },
-                    placeholder = { Text("输入分类名称") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = onSave,
-                enabled = name.isNotBlank()
-            ) {
-                Text("保存")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("取消")
-            }
-        }
-    )
+        title = if (isEditing) "编辑分类" else "添加分类",
+        onConfirm = onSave,
+        confirmText = "保存",
+        confirmEnabled = name.isNotBlank()
+    ) {
+        GlassTextField(
+            value = name,
+            onValueChange = onNameChange,
+            label = "分类名称",
+            placeholder = "输入分类名称",
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
 }

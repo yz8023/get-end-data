@@ -5,9 +5,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import com.expiryguard.app.ui.liquid.theme.PaletteId
 import com.expiryguard.app.ui.liquid.theme.ThemeMode
@@ -74,6 +77,14 @@ class AppSettingsState(private val prefs: Context) {
     var cornerScale by mutableFloatStateOf(store.getFloat(KEY_CORNER, 1f))
         private set
 
+    /** Free-form accent seed colour used when [PaletteId.Custom] is active. */
+    var customSeed by mutableIntStateOf(store.getInt(KEY_CUSTOM_SEED, Color(0xFF3E8FE0).toArgb()))
+        private set
+
+    /** 0f..1f — how deep/light the custom background reads. */
+    var customShade by mutableFloatStateOf(store.getFloat(KEY_CUSTOM_SHADE, 0.5f))
+        private set
+
     fun updateThemeMode(value: ThemeMode) {
         themeMode = value
         store.edit().putString(KEY_THEME, value.name).apply()
@@ -119,6 +130,16 @@ class AppSettingsState(private val prefs: Context) {
         store.edit().putFloat(KEY_CORNER, value).apply()
     }
 
+    fun updateCustomSeed(value: Color) {
+        customSeed = value.toArgb()
+        store.edit().putInt(KEY_CUSTOM_SEED, value.toArgb()).apply()
+    }
+
+    fun updateCustomShade(value: Float) {
+        customShade = value
+        store.edit().putFloat(KEY_CUSTOM_SHADE, value).apply()
+    }
+
     fun reset() {
         updateThemeMode(ThemeMode.System)
         updatePalette(PaletteId.Aurora)
@@ -129,6 +150,8 @@ class AppSettingsState(private val prefs: Context) {
         updateGlassOpacity(0.55f)
         updateGlassRefraction(1f)
         updateCornerScale(1f)
+        updateCustomSeed(Color(0xFF3E8FE0))
+        updateCustomShade(0.5f)
     }
 
     private companion object {
@@ -144,6 +167,8 @@ class AppSettingsState(private val prefs: Context) {
         const val KEY_OPACITY = "glassOpacity"
         const val KEY_REFRACTION = "glassRefraction"
         const val KEY_CORNER = "cornerScale"
+        const val KEY_CUSTOM_SEED = "customSeed"
+        const val KEY_CUSTOM_SHADE = "customShade"
     }
 }
 

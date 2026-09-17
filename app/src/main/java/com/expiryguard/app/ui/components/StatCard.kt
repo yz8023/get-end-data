@@ -2,10 +2,7 @@ package com.expiryguard.app.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -15,10 +12,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.expiryguard.app.ui.liquid.components.liquidGlass
+import com.expiryguard.app.ui.liquid.theme.AppShape
 
 /**
- * 毛玻璃风格统计卡片，显示大号数字和标签文字。
- * 使用增强的GlassCard组件，带状态色指示。
+ * 液态玻璃风格统计卡片，显示大号数字和标签文字。
+ *
+ * 内部使用液态玻璃面板 + 大号强调色数字 + 弱化标签，
+ * 与设计系统保持一致的玻璃卡片语言。
  *
  * @param label 统计项标签
  * @param value 统计数值
@@ -32,34 +33,28 @@ fun StatCard(
     color: Color,
     modifier: Modifier = Modifier
 ) {
-    GlassCard(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        elevation = 2.dp,
-        statusColor = color
+    Column(
+        modifier = modifier
+            .liquidGlass(
+                shape = AppShape.card,
+                tint = color.copy(alpha = 0.10f),
+                elevation = 1.dp,
+                borderAlpha = 0.32f
+            )
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        Column(
-            modifier = Modifier
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            // 大号数字
-            Text(
-                text = value,
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                color = color
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // 小标签
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-            )
-        }
+        Text(
+            text = value,
+            fontSize = 32.sp,
+            fontWeight = FontWeight.Bold,
+            color = color
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+        )
     }
 }

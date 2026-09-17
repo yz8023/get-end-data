@@ -9,6 +9,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,20 +29,12 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -60,9 +53,13 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.expiryguard.app.data.db.entity.ShelfLifeGroupEntity
+import com.expiryguard.app.ui.components.EmptyState
 import com.expiryguard.app.ui.components.GlassCard
-import com.expiryguard.app.ui.components.GradientBackground
 import com.expiryguard.app.ui.components.GlassTopAppBar
+import com.expiryguard.app.ui.components.GradientBackground
+import com.expiryguard.app.ui.liquid.components.GlassDialog
+import com.expiryguard.app.ui.liquid.components.GlassIconButton
+import com.expiryguard.app.ui.liquid.components.GlassTextField
 import com.expiryguard.app.ui.theme.Gray500
 import com.expiryguard.app.ui.theme.Red500
 
@@ -102,12 +99,11 @@ fun ShelfLifeGroupManagementScreen(
             GlassTopAppBar(
                 title = { Text("保质期分组管理") },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "返回"
-                        )
-                    }
+                    GlassIconButton(
+                        icon = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "返回",
+                        onClick = onNavigateBack
+                    )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent
@@ -115,16 +111,12 @@ fun ShelfLifeGroupManagementScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
+            GlassIconButton(
+                icon = Icons.Default.Add,
+                contentDescription = "添加分组",
                 onClick = { viewModel.showAddDialog() },
-                containerColor = MaterialTheme.colorScheme.primary
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "添加分组",
-                    tint = MaterialTheme.colorScheme.onPrimary
-                )
-            }
+                tint = MaterialTheme.colorScheme.primary
+            )
         },
         containerColor = Color.Transparent
     ) { innerPadding ->
@@ -145,10 +137,9 @@ fun ShelfLifeGroupManagementScreen(
                         .padding(innerPadding),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "暂无分组，点击右下角 + 添加",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = Gray500
+                    EmptyState(
+                        message = "暂无分组，点击右下角 + 添加",
+                        icon = Icons.Default.Add
                     )
                 }
             } else {
@@ -158,7 +149,7 @@ fun ShelfLifeGroupManagementScreen(
                         .padding(innerPadding)
                         .padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    contentPadding = PaddingValues(
                         top = 8.dp,
                         bottom = 88.dp
                     )
@@ -204,26 +195,17 @@ fun ShelfLifeGroupManagementScreen(
 
     // 删除确认对话框
     showDeleteConfirm?.let { group ->
-        AlertDialog(
+        GlassDialog(
             onDismissRequest = { showDeleteConfirm = null },
-            title = { Text("确认删除") },
-            text = { Text("确定要删除分组「${group.name}」吗？此操作不可恢复。") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.deleteGroup(group)
-                        showDeleteConfirm = null
-                    }
-                ) {
-                    Text("删除", color = Red500)
-                }
+            title = "确认删除",
+            onConfirm = {
+                viewModel.deleteGroup(group)
+                showDeleteConfirm = null
             },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = null }) {
-                    Text("取消")
-                }
-            }
-        )
+            confirmText = "删除"
+        ) {
+            Text("确定要删除分组「${group.name}」吗？此操作不可恢复。")
+        }
     }
 }
 
@@ -310,29 +292,19 @@ private fun GroupCard(
             }
 
             // 操作按钮
-            IconButton(
+            GlassIconButton(
+                icon = Icons.Default.Edit,
+                contentDescription = "编辑",
                 onClick = onClick,
-                modifier = Modifier.size(32.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = "编辑",
-                    modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
+                tint = MaterialTheme.colorScheme.primary
+            )
             if (!group.isDefault) {
-                IconButton(
+                GlassIconButton(
+                    icon = Icons.Default.Delete,
+                    contentDescription = "删除",
                     onClick = onLongClick,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "删除",
-                        modifier = Modifier.size(18.dp),
-                        tint = Red500
-                    )
-                }
+                    tint = Red500
+                )
             }
         }
     }
@@ -365,114 +337,102 @@ private fun GroupEditDialog(
         "#2563EB", "#7C3AED", "#EC4899", "#6B7280"
     )
 
-    AlertDialog(
+    val minDaysValid = minDays.toIntOrNull()?.let { it >= 0 } ?: false
+    val maxDaysValid = maxDays.isBlank() || (maxDays.toIntOrNull()?.let { it > 0 } ?: false)
+    val rangeValid = maxDays.isBlank() ||
+        (minDaysValid && (maxDays.toIntOrNull()?.let { it > (minDays.toIntOrNull() ?: Int.MIN_VALUE) } ?: false))
+    val reminderValid = reminderThreshold.toIntOrNull()?.let { it >= 0 } ?: false
+
+    GlassDialog(
         onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = if (isEditing) "编辑分组" else "添加分组",
-                fontWeight = FontWeight.Bold
+        title = if (isEditing) "编辑分组" else "添加分组",
+        onConfirm = onSave,
+        confirmText = "保存",
+        confirmEnabled = name.isNotBlank() && minDaysValid && maxDaysValid && rangeValid && reminderValid
+    ) {
+        GlassTextField(
+            value = name,
+            onValueChange = onNameChange,
+            label = "分组名称",
+            placeholder = "如：3个月以下",
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        GlassTextField(
+            value = description,
+            onValueChange = onDescriptionChange,
+            label = "描述",
+            placeholder = "如：保质期短，不提醒",
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            GlassTextField(
+                value = minDays,
+                onValueChange = onMinDaysChange,
+                label = "最小天数",
+                placeholder = "0",
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.weight(1f)
             )
-        },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = onNameChange,
-                    label = { Text("分组名称") },
-                    placeholder = { Text("如：3个月以下") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
+            GlassTextField(
+                value = maxDays,
+                onValueChange = onMaxDaysChange,
+                label = "最大天数",
+                placeholder = "空=无上限",
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.weight(1f)
+            )
+        }
 
-                OutlinedTextField(
-                    value = description,
-                    onValueChange = onDescriptionChange,
-                    label = { Text("描述") },
-                    placeholder = { Text("如：保质期短，不提醒") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
+        GlassTextField(
+            value = reminderThreshold,
+            onValueChange = onReminderThresholdChange,
+            label = "提前提醒天数",
+            placeholder = "0",
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth()
+        )
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedTextField(
-                        value = minDays,
-                        onValueChange = onMinDaysChange,
-                        label = { Text("最小天数") },
-                        placeholder = { Text("0") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = maxDays,
-                        onValueChange = onMaxDaysChange,
-                        label = { Text("最大天数") },
-                        placeholder = { Text("空=无上限") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f)
-                    )
+        // 颜色选择
+        Text(
+            text = "选择颜色",
+            style = MaterialTheme.typography.labelMedium,
+            color = Gray500
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            colorOptions.forEach { hex ->
+                val isSelected = hex == colorHex
+                val color = try {
+                    Color(android.graphics.Color.parseColor(hex))
+                } catch (e: Exception) {
+                    Color.Gray
                 }
-
-                OutlinedTextField(
-                    value = reminderThreshold,
-                    onValueChange = onReminderThresholdChange,
-                    label = { Text("提前提醒天数") },
-                    placeholder = { Text("0") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // 颜色选择
-                Text(
-                    text = "选择颜色",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Gray500
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    colorOptions.forEach { hex ->
-                        val isSelected = hex == colorHex
-                        val color = try {
-                            Color(android.graphics.Color.parseColor(hex))
-                        } catch (e: Exception) {
-                            Color.Gray
-                        }
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(color)
-                                .border(
-                                    width = if (isSelected) 3.dp else 0.dp,
-                                    color = if (isSelected) MaterialTheme.colorScheme.primary
-                                    else Color.Transparent,
-                                    shape = CircleShape
-                                )
-                                .clickable { onColorHexChange(hex) }
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(color)
+                        .border(
+                            width = if (isSelected) 3.dp else 0.dp,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary
+                            else Color.Transparent,
+                            shape = CircleShape
                         )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onSave) {
-                Text("保存")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("取消")
+                        .clickable { onColorHexChange(hex) }
+                )
             }
         }
-    )
+    }
 }

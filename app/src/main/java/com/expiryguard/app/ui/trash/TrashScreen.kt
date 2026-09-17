@@ -1,6 +1,5 @@
 package com.expiryguard.app.ui.trash
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -24,20 +23,12 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -56,7 +47,11 @@ import com.expiryguard.app.data.db.entity.ProductEntity
 import com.expiryguard.app.domain.engine.ExpiryRuleEngine
 import com.expiryguard.app.domain.model.ProductStatus
 import com.expiryguard.app.ui.components.EmptyState
+import com.expiryguard.app.ui.components.GlassCard
 import com.expiryguard.app.ui.components.GlassTopAppBar
+import com.expiryguard.app.ui.liquid.components.GlassIconButton
+import com.expiryguard.app.ui.liquid.components.PrimaryButton
+import com.expiryguard.app.ui.liquid.components.SecondaryButton
 import com.expiryguard.app.ui.theme.Gray500
 import com.expiryguard.app.ui.theme.Green500
 import com.expiryguard.app.ui.theme.Red500
@@ -94,12 +89,11 @@ fun TrashScreen(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "返回"
-                        )
-                    }
+                    GlassIconButton(
+                        icon = Icons.Default.ArrowBack,
+                        contentDescription = "返回",
+                        onClick = onNavigateBack
+                    )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
@@ -117,10 +111,9 @@ fun TrashScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     // 批量恢复按钮
-                    OutlinedButton(
+                    SecondaryButton(
                         onClick = { viewModel.restoreSelected() },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp)
+                        modifier = Modifier.weight(1f)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Restore,
@@ -132,13 +125,9 @@ fun TrashScreen(
                     }
 
                     // 批量永久删除按钮
-                    Button(
+                    PrimaryButton(
                         onClick = { viewModel.permanentDeleteSelected() },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Red500
-                        )
+                        modifier = Modifier.weight(1f)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Delete,
@@ -179,7 +168,7 @@ fun TrashScreen(
                         horizontalArrangement = Arrangement.End
                     ) {
                         if (isMultiSelectMode) {
-                            TextButton(
+                            SecondaryButton(
                                 onClick = {
                                     if (selectedIds.size == trashedProducts.size) {
                                         viewModel.clearSelection()
@@ -240,93 +229,86 @@ private fun TrashProductCard(
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
-    val backgroundColor by animateColorAsState(
-        targetValue = if (isSelected) {
-            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant
-        },
-        label = "card_background_color"
-    )
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
-            ),
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        selected = isSelected,
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = backgroundColor
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        elevation = 0.dp
     ) {
-        Row(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick
+                )
+                .padding(12.dp)
         ) {
-            // 多选模式的复选框
-            if (isMultiSelectMode) {
-                Checkbox(
-                    checked = isSelected,
-                    onCheckedChange = { onClick() },
-                    modifier = Modifier.padding(end = 8.dp)
-                )
-            }
-
-            // 状态颜色圆点
-            val status = ExpiryRuleEngine.calculateStatus(
-                product.shelfLifeDays, product.expiryDate
-            )
-            Box(
+            Row(
                 modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(getTrashStatusColor(status))
-            )
-            Spacer(modifier = Modifier.width(8.dp))
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // 多选模式的复选框
+                if (isMultiSelectMode) {
+                    Checkbox(
+                        checked = isSelected,
+                        onCheckedChange = { onClick() },
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                }
 
-            // 清单信息
-            Column(modifier = Modifier.weight(1f)) {
-                // 清单名称
-                Text(
-                    text = product.name,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                // 状态颜色圆点
+                val status = ExpiryRuleEngine.calculateStatus(
+                    product.shelfLifeDays, product.expiryDate
                 )
-
-                Spacer(modifier = Modifier.height(2.dp))
-
-                // 到期日期
-                Text(
-                    text = "到期: ${DateUtils.formatDate(product.expiryDate)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(getTrashStatusColor(status))
                 )
+                Spacer(modifier = Modifier.width(8.dp))
 
-                // 删除时间
-                val deleteTime = product.deletedAt?.let {
-                    DateUtils.formatDate(it)
-                } ?: "未知"
+                // 清单信息
+                Column(modifier = Modifier.weight(1f)) {
+                    // 清单名称
+                    Text(
+                        text = product.name,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    // 到期日期
+                    Text(
+                        text = "到期: ${DateUtils.formatDate(product.expiryDate)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+
+                    // 删除时间
+                    val deleteTime = product.deletedAt?.let {
+                        DateUtils.formatDate(it)
+                    } ?: "未知"
+                    Text(
+                        text = "删除时间: $deleteTime",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                    )
+                }
+
+                // 状态标签
                 Text(
-                    text = "删除时间: $deleteTime",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                    text = getTrashStatusLabel(status),
+                    fontSize = 12.sp,
+                    color = getTrashStatusColor(status),
+                    fontWeight = FontWeight.Medium
                 )
             }
-
-            // 状态标签
-            Text(
-                text = getTrashStatusLabel(status),
-                fontSize = 12.sp,
-                color = getTrashStatusColor(status),
-                fontWeight = FontWeight.Medium
-            )
         }
     }
 }

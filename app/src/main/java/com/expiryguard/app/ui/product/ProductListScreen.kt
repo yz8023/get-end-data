@@ -34,16 +34,7 @@ import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.NoteAdd
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -52,8 +43,6 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -80,6 +69,12 @@ import com.expiryguard.app.ui.components.GlassCardSmall
 import com.expiryguard.app.ui.components.GradientBackground
 import com.expiryguard.app.ui.components.GlassTopAppBar
 import com.expiryguard.app.ui.components.ProductCard
+import com.expiryguard.app.ui.liquid.components.GlassDialog
+import com.expiryguard.app.ui.liquid.components.GlassIconButton
+import com.expiryguard.app.ui.liquid.components.GlassTextField
+import com.expiryguard.app.ui.liquid.components.PrimaryButton
+import com.expiryguard.app.ui.liquid.components.SecondaryButton
+import com.expiryguard.app.ui.liquid.components.SegmentedTabs
 import com.expiryguard.app.ui.theme.Blue500
 import com.expiryguard.app.ui.theme.Gray500
 import com.expiryguard.app.ui.theme.Green500
@@ -163,38 +158,31 @@ fun ProductListScreen(
                     title = { Text("清单列表") },
                     actions = {
                         // 切换视图模式按钮
-                        IconButton(onClick = { viewModel.toggleViewMode() }) {
-                            Icon(
-                                imageVector = if (uiState.viewMode == ViewMode.LIST) {
-                                    Icons.Default.GridView
-                                } else {
-                                    Icons.Default.List
-                                },
-                                contentDescription = if (uiState.viewMode == ViewMode.LIST) {
-                                    "网格视图"
-                                } else {
-                                    "列表视图"
-                                }
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent
-                    )
+                        GlassIconButton(
+                            icon = if (uiState.viewMode == ViewMode.LIST) {
+                                Icons.Default.GridView
+                            } else {
+                                Icons.Default.List
+                            },
+                            contentDescription = if (uiState.viewMode == ViewMode.LIST) {
+                                "网格视图"
+                            } else {
+                                "列表视图"
+                            },
+                            onClick = { viewModel.toggleViewMode() }
+                        )
+                    }
                 )
             }
         },
         floatingActionButton = {
             // 添加清单 FAB
-            FloatingActionButton(
+            GlassIconButton(
+                icon = Icons.Default.Add,
+                contentDescription = "添加清单",
                 onClick = onNavigateToAddProduct,
-                containerColor = MaterialTheme.colorScheme.primary
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "添加清单"
-                )
-            }
+                tint = MaterialTheme.colorScheme.primary
+            )
         },
         containerColor = Color.Transparent
     ) { innerPadding ->
@@ -304,36 +292,25 @@ fun ProductListScreen(
     }
 
     if (showDeleteDialog && pendingDeleteId != null) {
-        androidx.compose.material3.AlertDialog(
+        GlassDialog(
             onDismissRequest = {
                 showDeleteDialog = false
                 pendingDeleteId = null
             },
-            title = { androidx.compose.material3.Text("确认删除") },
-            text = { androidx.compose.material3.Text("确定要删除此清单吗？删除后可在回收站中恢复。") },
-            confirmButton = {
-                androidx.compose.material3.TextButton(
-                    onClick = {
-                        showDeleteDialog = false
-                        pendingDeleteId?.let { id ->
-                            viewModel.swipeDelete(id)
-                        }
-                        pendingDeleteId = null
-                        selectedProduct = null
-                    }
-                ) {
-                    Text("删除", color = Red500)
+            title = "确认删除",
+            onConfirm = {
+                showDeleteDialog = false
+                pendingDeleteId?.let { id ->
+                    viewModel.swipeDelete(id)
                 }
+                pendingDeleteId = null
+                selectedProduct = null
             },
-            dismissButton = {
-                androidx.compose.material3.TextButton(onClick = {
-                    showDeleteDialog = false
-                    pendingDeleteId = null
-                }) {
-                    Text("取消")
-                }
-            }
-        )
+            confirmText = "删除",
+            dismissText = "取消"
+        ) {
+            Text("确定要删除此清单吗？删除后可在回收站中恢复。")
+        }
     }
 
     // 底部弹出层：清单详情
@@ -361,11 +338,18 @@ fun ProductListScreen(
                 else -> Green500
             }
 
+            GlassCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 24.dp),
+                shape = RoundedCornerShape(24.dp)
+            ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 32.dp)
+                    .padding(horizontal = 8.dp)
+                    .padding(bottom = 8.dp)
             ) {
                 // 拖拽指示条
                 Box(
@@ -440,29 +424,42 @@ fun ProductListScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // 标记完成/取消完成
-                Button(
-                    onClick = {
-                        viewModel.swipeComplete(product.id)
-                        selectedProduct = null
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (product.isCompleted) Gray500 else Green500
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = if (product.isCompleted) "取消完成" else "标记已处理",
-                        style = MaterialTheme.typography.titleSmall
-                    )
+                if (product.isCompleted) {
+                    SecondaryButton(
+                        onClick = {
+                            viewModel.swipeComplete(product.id)
+                            selectedProduct = null
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("取消完成", style = MaterialTheme.typography.titleSmall)
+                    }
+                } else {
+                    PrimaryButton(
+                        onClick = {
+                            viewModel.swipeComplete(product.id)
+                            selectedProduct = null
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("标记已处理", style = MaterialTheme.typography.titleSmall)
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -473,7 +470,7 @@ fun ProductListScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     // 编辑按钮
-                    OutlinedButton(
+                    SecondaryButton(
                         onClick = {
                             val id = product.id
                             selectedProduct = null
@@ -481,11 +478,7 @@ fun ProductListScreen(
                         },
                         modifier = Modifier
                             .weight(1f)
-                            .height(48.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = Blue500
-                        )
+                            .height(48.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Edit,
@@ -497,18 +490,14 @@ fun ProductListScreen(
                     }
 
                     // 删除按钮
-                    OutlinedButton(
+                    SecondaryButton(
                         onClick = {
                             pendingDeleteId = product.id
                             showDeleteDialog = true
                         },
                         modifier = Modifier
                             .weight(1f)
-                            .height(48.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = Red500
-                        )
+                            .height(48.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Delete,
@@ -537,45 +526,33 @@ fun ProductListScreen(
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
+                }
             }
         }
     }
 
     // 批量备注对话框
     if (showBatchNotesDialog) {
-        androidx.compose.material3.AlertDialog(
+        GlassDialog(
             onDismissRequest = { showBatchNotesDialog = false },
-            title = { androidx.compose.material3.Text("批量备注") },
-            text = {
-                androidx.compose.material3.OutlinedTextField(
-                    value = batchNotesText,
-                    onValueChange = { batchNotesText = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { androidx.compose.material3.Text("输入备注内容...") },
-                    minLines = 3,
-                    maxLines = 5
-                )
-            },
-            confirmButton = {
-                androidx.compose.material3.TextButton(
-                    onClick = {
-                        if (batchNotesText.isNotBlank()) {
-                            viewModel.batchUpdateNotes(batchNotesText)
-                        }
-                        showBatchNotesDialog = false
-                    }
-                ) {
-                    androidx.compose.material3.Text("保存")
+            title = "批量备注",
+            onConfirm = {
+                if (batchNotesText.isNotBlank()) {
+                    viewModel.batchUpdateNotes(batchNotesText)
                 }
+                showBatchNotesDialog = false
             },
-            dismissButton = {
-                androidx.compose.material3.TextButton(
-                    onClick = { showBatchNotesDialog = false }
-                ) {
-                    androidx.compose.material3.Text("取消")
-                }
-            }
-        )
+            confirmText = "保存",
+            dismissText = "取消"
+        ) {
+            GlassTextField(
+                value = batchNotesText,
+                onValueChange = { batchNotesText = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = "输入备注内容...",
+                singleLine = false
+            )
+        }
     }
 }
 
@@ -623,55 +600,37 @@ private fun SearchBar(
     onQueryChange: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    GlassCard(
+    Row(
         modifier = modifier,
-        shape = RoundedCornerShape(14.dp),
-        elevation = 2.dp
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
+        Icon(
+            imageVector = Icons.Default.Search,
+            contentDescription = "搜索",
+            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp, vertical = 2.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = "搜索",
-                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
-                modifier = Modifier
-                    .padding(start = 12.dp)
-                    .size(22.dp)
-            )
-            // 内嵌搜索输入框
-            androidx.compose.material3.TextField(
-                value = query,
-                onValueChange = onQueryChange,
-                modifier = Modifier.weight(1f),
-                placeholder = {
-                    Text(
-                        "搜索清单名称",
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                    )
-                },
-                singleLine = true,
-                colors = androidx.compose.material3.TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    cursorColor = MaterialTheme.colorScheme.primary
-                )
-            )
-            if (query.isNotEmpty()) {
-                IconButton(onClick = { onQueryChange("") }) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "清除搜索",
-                        tint = Gray500
-                    )
+                .padding(start = 12.dp)
+                .size(22.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        GlassTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            modifier = Modifier.weight(1f),
+            placeholder = "搜索清单名称",
+            singleLine = true,
+            trailingIcon = if (query.isNotEmpty()) {
+                {
+                    IconButton(onClick = { onQueryChange("") }) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "清除搜索",
+                            tint = Gray500
+                        )
+                    }
                 }
-            }
-        }
+            } else null
+        )
     }
 }
 
@@ -683,42 +642,14 @@ private fun FilterChipsRow(
     currentFilter: ProductFilter,
     onFilterSelected: (ProductFilter) -> Unit
 ) {
-    LazyRow(
+    SegmentedTabs(
+        labels = ProductFilter.values().map { it.label },
+        selectedIndex = ProductFilter.values().indexOf(currentFilter),
+        onSelected = { onFilterSelected(ProductFilter.values()[it]) },
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        items(ProductFilter.values()) { filter ->
-            val isSelected = filter == currentFilter
-            FilterChip(
-                selected = isSelected,
-                onClick = { onFilterSelected(filter) },
-                label = {
-                    Text(
-                        text = filter.label,
-                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
-                    )
-                },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = when (filter) {
-                        ProductFilter.ALL -> MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                        ProductFilter.SAFE -> Green500.copy(alpha = 0.15f)
-                        ProductFilter.EXPIRING_SOON -> Yellow500.copy(alpha = 0.15f)
-                        ProductFilter.RETURNABLE -> Blue500.copy(alpha = 0.15f)
-                        ProductFilter.TAKEDOWN -> Red500.copy(alpha = 0.15f)
-                        ProductFilter.EXPIRED -> Gray500.copy(alpha = 0.15f)
-                    }
-                ),
-                border = FilterChipDefaults.filterChipBorder(
-                    borderColor = if (isSelected) Color.Transparent else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                    selectedBorderColor = Color.Transparent,
-                    enabled = true,
-                    selected = isSelected
-                )
-            )
-        }
-    }
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+    )
 }
 
 /**
@@ -766,10 +697,7 @@ private fun MultiSelectTopBar(
                     contentDescription = "批量备注"
                 )
             }
-        },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-        )
+        }
     )
 }
 

@@ -25,7 +25,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -49,8 +48,9 @@ import com.expiryguard.app.data.db.entity.ProductEntity
 import com.expiryguard.app.domain.engine.ExpiryRuleEngine
 import com.expiryguard.app.domain.model.ProductStatus
 import com.expiryguard.app.ui.components.GlassCard
-import com.expiryguard.app.ui.components.GradientBackground
 import com.expiryguard.app.ui.components.GlassTopAppBar
+import com.expiryguard.app.ui.components.GradientBackground
+import com.expiryguard.app.ui.components.StatCard
 import com.expiryguard.app.ui.theme.Blue500
 import com.expiryguard.app.ui.theme.Gray500
 import com.expiryguard.app.ui.theme.Green500
@@ -144,18 +144,16 @@ fun StatsScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            GlassStatCard(
+                            StatCard(
                                 label = "总数",
                                 value = uiState.totalCount.toString(),
                                 color = Blue500,
-                                statusColor = Blue500,
                                 modifier = Modifier.weight(1f)
                             )
-                            GlassStatCard(
+                            StatCard(
                                 label = "即将到期",
                                 value = uiState.expiringCount.toString(),
                                 color = Yellow500,
-                                statusColor = Yellow500,
                                 modifier = Modifier.weight(1f)
                             )
                         }
@@ -164,18 +162,16 @@ fun StatsScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            GlassStatCard(
+                            StatCard(
                                 label = "可退货",
                                 value = uiState.returnableCount.toString(),
                                 color = Blue500,
-                                statusColor = Blue500,
                                 modifier = Modifier.weight(1f)
                             )
-                            GlassStatCard(
+                            StatCard(
                                 label = "已过期",
                                 value = uiState.expiredCount.toString(),
                                 color = Red500,
-                                statusColor = Red500,
                                 modifier = Modifier.weight(1f)
                             )
                         }
@@ -184,18 +180,16 @@ fun StatsScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            GlassStatCard(
+                            StatCard(
                                 label = "已下架",
                                 value = uiState.takeDownCount.toString(),
                                 color = Red500,
-                                statusColor = Red500,
                                 modifier = Modifier.weight(1f)
                             )
-                            GlassStatCard(
+                            StatCard(
                                 label = "已处理",
                                 value = uiState.processedCount.toString(),
                                 color = Green500,
-                                statusColor = Green500,
                                 modifier = Modifier.weight(1f)
                             )
                         }
@@ -277,46 +271,6 @@ fun StatsScreen(
                     }
                 }
             }
-        }
-    }
-}
-
-/**
- * 毛玻璃风格的统计卡片（增强版）
- *
- * 使用 GlassCard 带 statusColor 参数，显示彩色边框光晕
- */
-@Composable
-private fun GlassStatCard(
-    label: String,
-    value: String,
-    color: Color,
-    statusColor: Color,
-    modifier: Modifier = Modifier
-) {
-    GlassCard(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        elevation = 2.dp,
-        statusColor = statusColor
-    ) {
-        Column(
-            modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = value,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = color
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-            )
         }
     }
 }

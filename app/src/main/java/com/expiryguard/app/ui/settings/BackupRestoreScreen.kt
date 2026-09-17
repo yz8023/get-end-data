@@ -25,21 +25,15 @@ import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -48,14 +42,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.expiryguard.app.ui.components.GlassCard
-import com.expiryguard.app.ui.components.GradientBackground
 import com.expiryguard.app.ui.components.GlassTopAppBar
+import com.expiryguard.app.ui.components.GradientBackground
+import com.expiryguard.app.ui.liquid.components.Meter
+import com.expiryguard.app.ui.liquid.components.PreferenceCard
+import com.expiryguard.app.ui.liquid.components.PrimaryButton
+import com.expiryguard.app.ui.liquid.components.SecondaryButton
 import com.expiryguard.app.ui.theme.Blue500
 import com.expiryguard.app.ui.theme.Green500
 import com.expiryguard.app.ui.theme.Purple500
@@ -64,7 +60,7 @@ import com.expiryguard.app.ui.theme.Red500
 /**
  * 备份与恢复页面
  *
- * 使用毛玻璃风格 GlassCard，支持：
+ * 使用液态玻璃风格，支持：
  * - 备份数据（含图片）到 .expiryguard 文件
  * - 从 .expiryguard 文件恢复数据
  *
@@ -125,10 +121,7 @@ fun BackupRestoreScreen(
                             contentDescription = "返回"
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
-                )
+                }
             )
         },
         snackbarHost = {
@@ -150,15 +143,11 @@ fun BackupRestoreScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 // ==================== 备份区域 ====================
-                GlassCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
+                PreferenceCard {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -215,14 +204,10 @@ fun BackupRestoreScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                LinearProgressIndicator(
-                                    progress = { backupProgress },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(6.dp),
-                                    color = Purple500,
-                                    trackColor = Purple500.copy(alpha = 0.15f),
-                                    strokeCap = StrokeCap.Round
+                                Meter(
+                                    progress = backupProgress,
+                                    accent = Purple500,
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
@@ -235,16 +220,12 @@ fun BackupRestoreScreen(
                         }
 
                         // 备份按钮
-                        Button(
+                        PrimaryButton(
                             onClick = { viewModel.backupData() },
                             enabled = !isBackingUp && !isRestoring,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(48.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Purple500
-                            )
+                                .height(48.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.CloudUpload,
@@ -261,10 +242,7 @@ fun BackupRestoreScreen(
                 }
 
                 // ==================== 恢复区域 ====================
-                GlassCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
+                PreferenceCard {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -309,14 +287,10 @@ fun BackupRestoreScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                LinearProgressIndicator(
-                                    progress = { restoreProgress },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(6.dp),
-                                    color = Blue500,
-                                    trackColor = Blue500.copy(alpha = 0.15f),
-                                    strokeCap = StrokeCap.Round
+                                Meter(
+                                    progress = restoreProgress,
+                                    accent = Blue500,
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
@@ -329,15 +303,14 @@ fun BackupRestoreScreen(
                         }
 
                         // 选择备份文件按钮
-                        OutlinedButton(
+                        SecondaryButton(
                             onClick = {
                                 filePickerLauncher.launch(arrayOf("application/octet-stream", "*/*"))
                             },
                             enabled = !isBackingUp && !isRestoring,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(48.dp),
-                            shape = RoundedCornerShape(12.dp)
+                                .height(48.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.CloudDownload,
@@ -354,10 +327,7 @@ fun BackupRestoreScreen(
                 }
 
                 // ==================== 警告提示 ====================
-                GlassCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
+                PreferenceCard {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()

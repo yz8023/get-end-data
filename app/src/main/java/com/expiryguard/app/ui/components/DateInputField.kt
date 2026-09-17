@@ -16,11 +16,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -36,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.expiryguard.app.ui.liquid.components.GlassTextField
 import com.expiryguard.app.ui.theme.Gray500
 import com.expiryguard.app.ui.theme.Green500
 import com.expiryguard.app.ui.theme.Red500
@@ -58,7 +57,6 @@ import java.time.LocalDate
  * @param onDateSelected 选中日期回调（日历或解析成功后触发）
  * @param onDateCleared 清空日期回调（可空）
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DateInputField(
     label: String,
@@ -125,7 +123,7 @@ fun DateInputField(
             Spacer(modifier = Modifier.height(10.dp))
 
             // 文本输入框：支持多格式输入
-            OutlinedTextField(
+            GlassTextField(
                 value = textInput,
                 onValueChange = { input ->
                     textInput = input
@@ -144,28 +142,17 @@ fun DateInputField(
                         }
                     }
                 },
-                placeholder = { Text(hint) },
-                label = {
-                    Text(
-                        text = if (value != null) {
-                            "已选：${DateUtils.formatDate(value)}"
-                        } else {
-                            hint
-                        }
-                    )
-                },
+                placeholder = hint,
+                label = if (value != null) "已选：${DateUtils.formatDate(value)}" else hint,
                 isError = parseError,
-                supportingText = {
-                    if (parseError) {
-                        Text("格式无法识别，示例：1.1 / 1月1日 / 2019.1.1")
-                    } else if (isParsed != null) {
-                        Text("已识别：${isParsed.year}年${isParsed.monthValue}月${isParsed.dayOfMonth}日", color = Green500)
-                    } else {
-                        Text("只填几月几日即可，年份默认今年，如 1.1 或 1月1日")
-                    }
+                supportingText = if (parseError) {
+                    "格式无法识别，示例：1.1 / 1月1日 / 2019.1.1"
+                } else if (isParsed != null) {
+                    "已识别：${isParsed.year}年${isParsed.monthValue}月${isParsed.dayOfMonth}日"
+                } else {
+                    "只填几月几日即可，年份默认今年，如 1.1 或 1月1日"
                 },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-                textStyle = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.fillMaxWidth()
             )
 

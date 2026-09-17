@@ -13,10 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -25,8 +23,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,11 +32,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.expiryguard.app.ui.components.GlassCard
-import com.expiryguard.app.ui.components.GradientBackground
 import com.expiryguard.app.ui.components.GlassTopAppBar
+import com.expiryguard.app.ui.components.GradientBackground
+import com.expiryguard.app.ui.liquid.components.PreferenceCard
 import com.expiryguard.app.ui.theme.Blue500
-import com.expiryguard.app.ui.theme.Green500
 import com.expiryguard.app.ui.theme.Purple500
 
 /**
@@ -64,10 +59,7 @@ fun AboutScreen(
                             contentDescription = "返回"
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
-                )
+                }
             )
         },
         containerColor = Color.Transparent
@@ -76,8 +68,7 @@ fun AboutScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding)
-                    .padding(horizontal = 24.dp),
+                    .padding(padding),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Spacer(modifier = Modifier.height(32.dp))
@@ -132,10 +123,7 @@ fun AboutScreen(
                 Spacer(modifier = Modifier.height(32.dp))
 
                 // 功能介绍
-                GlassCard(
-                    shape = RoundedCornerShape(16.dp),
-                    elevation = 2.dp
-                ) {
+                PreferenceCard {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -160,10 +148,7 @@ fun AboutScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // 技术信息
-                GlassCard(
-                    shape = RoundedCornerShape(16.dp),
-                    elevation = 2.dp
-                ) {
+                PreferenceCard {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()

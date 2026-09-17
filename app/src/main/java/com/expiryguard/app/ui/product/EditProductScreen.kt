@@ -28,21 +28,12 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -67,8 +58,12 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.expiryguard.app.ui.components.DateInputField
 import com.expiryguard.app.ui.components.GlassCard
-import com.expiryguard.app.ui.components.GradientBackground
 import com.expiryguard.app.ui.components.GlassTopAppBar
+import com.expiryguard.app.ui.components.GradientBackground
+import com.expiryguard.app.ui.liquid.components.GlassIconButton
+import com.expiryguard.app.ui.liquid.components.GlassTextField
+import com.expiryguard.app.ui.liquid.components.PrimaryButton
+import com.expiryguard.app.ui.liquid.components.SecondaryButton
 import com.expiryguard.app.ui.theme.Gray500
 import com.expiryguard.app.ui.theme.Red500
 import com.expiryguard.app.util.DateUtils
@@ -145,7 +140,7 @@ fun EditProductScreen(
             GlassTopAppBar(
                 title = { Text("编辑清单") },
                 navigationIcon = {
-                    TextButton(onClick = onNavigateBack) {
+                    SecondaryButton(onClick = onNavigateBack) {
                         Text("取消")
                     }
                 },
@@ -177,20 +172,14 @@ fun EditProductScreen(
                     // ========== 清单名称 ==========
                     SectionHeader(step = "1", title = "清单名称", isCompleted = uiState.name.isNotBlank())
                     GlassCard(modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(
+                        GlassTextField(
                             value = uiState.name,
                             onValueChange = { viewModel.updateName(it) },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(8.dp),
-                            placeholder = { Text("输入清单名称") },
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                            )
+                            placeholder = "输入清单名称",
+                            singleLine = true
                         )
                     }
 
@@ -285,37 +274,26 @@ fun EditProductScreen(
                         isCompleted = uiState.notes.isNotBlank()
                     )
                     GlassCard(modifier = Modifier.fillMaxWidth()) {
-                        OutlinedTextField(
+                        GlassTextField(
                             value = uiState.notes,
                             onValueChange = { viewModel.updateNotes(it) },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(8.dp),
-                            placeholder = { Text("添加备注信息...") },
-                            minLines = 3,
-                            maxLines = 5,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                            )
+                            placeholder = "添加备注信息...",
+                            singleLine = false
                         )
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))
 
                     // 保存按钮
-                    Button(
+                    PrimaryButton(
                         onClick = { viewModel.saveProduct() },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(52.dp),
-                        enabled = !uiState.isSaving && uiState.expiryDate != null && uiState.name.isNotBlank(),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
-                        )
+                        enabled = !uiState.isSaving && uiState.expiryDate != null && uiState.name.isNotBlank()
                     ) {
                         if (uiState.isSaving) {
                             CircularProgressIndicator(
@@ -448,35 +426,18 @@ private fun PhotoEditSection(
                 .padding(12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            IconButton(
+            GlassIconButton(
+                icon = Icons.Default.PhotoLibrary,
+                contentDescription = "从相册选择",
                 onClick = onPickFromGallery,
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f))
-                    .clip(CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.PhotoLibrary,
-                    contentDescription = "从相册选择",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            IconButton(
+                tint = MaterialTheme.colorScheme.primary
+            )
+            GlassIconButton(
+                icon = Icons.Default.CameraAlt,
+                contentDescription = "拍照",
                 onClick = onTakePhoto,
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.CameraAlt,
-                    contentDescription = "拍照",
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
+                tint = MaterialTheme.colorScheme.onPrimary
+            )
         }
     }
 }
@@ -499,19 +460,12 @@ private fun CategorySelectionGrid(
             ) {
                 rowItems.forEach { category ->
                     val isSelected = category.id == selectedCategoryId
-                    Card(
-                        onClick = { onCategorySelected(category.id) },
+                    GlassCard(
                         modifier = Modifier.weight(1f),
+                        selected = isSelected,
+                        onClick = { onCategorySelected(category.id) },
                         shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (isSelected)
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                            else
-                                MaterialTheme.colorScheme.surfaceVariant
-                        ),
-                        elevation = CardDefaults.cardElevation(
-                            defaultElevation = if (isSelected) 4.dp else 2.dp
-                        )
+                        elevation = if (isSelected) 4.dp else 2.dp
                     ) {
                         Box(
                             modifier = Modifier

@@ -1,7 +1,6 @@
 package com.expiryguard.app.ui.product
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,22 +20,13 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -58,8 +48,14 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.expiryguard.app.data.db.entity.ProductEntity
 import com.expiryguard.app.domain.model.ProductStatus
-import com.expiryguard.app.ui.components.StatusBadge
+import com.expiryguard.app.ui.components.GlassCard
+import com.expiryguard.app.ui.components.GlassCardGlow
 import com.expiryguard.app.ui.components.GlassTopAppBar
+import com.expiryguard.app.ui.components.StatusBadge
+import com.expiryguard.app.ui.liquid.components.GlassDialog
+import com.expiryguard.app.ui.liquid.components.GlassIconButton
+import com.expiryguard.app.ui.liquid.components.PrimaryButton
+import com.expiryguard.app.ui.liquid.components.SecondaryButton
 import com.expiryguard.app.ui.theme.Blue500
 import com.expiryguard.app.ui.theme.Gray500
 import com.expiryguard.app.ui.theme.Green500
@@ -101,34 +97,22 @@ fun ProductDetailScreen(
 
     // 删除确认对话框
     if (showDeleteDialog && pendingDeleteId != null) {
-        AlertDialog(
+        GlassDialog(
             onDismissRequest = {
                 showDeleteDialog = false
                 pendingDeleteId = null
             },
-            title = { Text("确认删除") },
-            text = { Text("确定要删除此清单吗？删除后可在回收站中恢复。") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteDialog = false
-                        viewModel.deleteProduct()
-                        pendingDeleteId?.let { onDelete(it) }
-                        pendingDeleteId = null
-                    }
-                ) {
-                    Text("删除", color = Red500)
-                }
+            title = "确认删除",
+            onConfirm = {
+                showDeleteDialog = false
+                viewModel.deleteProduct()
+                pendingDeleteId?.let { onDelete(it) }
+                pendingDeleteId = null
             },
-            dismissButton = {
-                TextButton(onClick = {
-                    showDeleteDialog = false
-                    pendingDeleteId = null
-                }) {
-                    Text("取消")
-                }
-            }
-        )
+            confirmText = "删除"
+        ) {
+            Text("确定要删除此清单吗？删除后可在回收站中恢复。")
+        }
     }
 
     Scaffold(
@@ -137,23 +121,19 @@ fun ProductDetailScreen(
             GlassTopAppBar(
                 title = { Text("清单详情") },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "返回"
-                        )
-                    }
+                    GlassIconButton(
+                        icon = Icons.Default.ArrowBack,
+                        contentDescription = "返回",
+                        onClick = onNavigateBack
+                    )
                 },
                 actions = {
                     // 编辑按钮
-                    IconButton(
+                    GlassIconButton(
+                        icon = Icons.Default.Edit,
+                        contentDescription = "编辑",
                         onClick = { uiState.product?.let { onEdit(it.id) } }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "编辑"
-                        )
-                    }
+                    )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
@@ -260,12 +240,10 @@ private fun ProductImageSection(
     photoPath: String?,
     productName: String
 ) {
-    Card(
+    GlassCardGlow(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            .padding(horizontal = 16.dp)
     ) {
         if (photoPath != null) {
             AsyncImage(
@@ -314,15 +292,12 @@ private fun ProductInfoSection(
     status: ProductStatus?,
     categoryName: String
 ) {
-    Card(
+    GlassCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = 1.dp
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -468,20 +443,18 @@ private fun StatusSection(
     status: ProductStatus,
     expiryDate: Long
 ) {
-    Card(
+    GlassCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = when (status) {
-                is ProductStatus.Safe -> Green500.copy(alpha = 0.08f)
-                is ProductStatus.ExpiringSoon -> Yellow500.copy(alpha = 0.08f)
-                is ProductStatus.Returnable -> Blue500.copy(alpha = 0.08f)
-                is ProductStatus.TakeDown -> Red500.copy(alpha = 0.08f)
-                is ProductStatus.Expired -> Gray500.copy(alpha = 0.08f)
-            }
-        )
+        statusColor = when (status) {
+            is ProductStatus.Safe -> Green500
+            is ProductStatus.ExpiringSoon -> Yellow500
+            is ProductStatus.Returnable -> Blue500
+            is ProductStatus.TakeDown -> Red500
+            is ProductStatus.Expired -> Gray500
+        }
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -573,15 +546,12 @@ private fun StatusSection(
  */
 @Composable
 private fun NotesSection(notes: String) {
-    Card(
+    GlassCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = 1.dp
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -621,15 +591,11 @@ private fun ActionButtons(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // 标记已处理按钮
-        Button(
+        PrimaryButton(
             onClick = onMarkAsHandled,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(50.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Green500
-            )
+                .height(50.dp)
         ) {
             Icon(
                 imageVector = Icons.Default.CheckCircle,
@@ -644,25 +610,23 @@ private fun ActionButtons(
         }
 
         // 删除按钮
-        OutlinedButton(
+        SecondaryButton(
             onClick = onDelete,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(50.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = Red500
-            )
+                .height(50.dp)
         ) {
             Icon(
                 imageVector = Icons.Default.Delete,
                 contentDescription = null,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(20.dp),
+                tint = Red500
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = "删除清单",
-                style = MaterialTheme.typography.titleSmall
+                style = MaterialTheme.typography.titleSmall,
+                color = Red500
             )
         }
     }

@@ -15,11 +15,13 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
+import com.expiryguard.app.ui.liquid.motion.Motion
 
 /** The colour themes the settings page switches between. */
 enum class PaletteId(val label: String) {
@@ -29,11 +31,17 @@ enum class PaletteId(val label: String) {
     Mono("素灰"),
     Coral("珊瑚"),
     Sakura("樱花"),
-    Galaxy("星夜")
+    Galaxy("星夜"),
+    Custom("自定义")
 }
 
+/** The palette switched to when the user picks a free seed colour. */
+val CustomPalette = PaletteId.Custom
+
 /** Light-mode primary of a palette — used for swatch previews in settings. */
-fun palettePrimaryLight(palette: PaletteId): Color = PaletteSeeds.getValue(palette).light.primary
+fun palettePrimaryLight(palette: PaletteId): Color =
+    if (palette == PaletteId.Custom) Color(0xFF3E8FE0)
+    else PaletteSeeds.getValue(palette).light.primary
 
 private data class PaletteSeed(
     val light: ColorSchemeSeed,
@@ -178,7 +186,15 @@ private val PaletteSeeds = mapOf(
     )
 )
 
-private fun schemeFor(palette: PaletteId, dark: Boolean): ColorScheme {
+private fun schemeFor(
+    palette: PaletteId,
+    dark: Boolean,
+    customSeed: Color = Color(0xFF3E8FE0),
+    customShade: Float = 0.5f
+): ColorScheme {
+    if (palette == PaletteId.Custom) {
+        return seedSchemeFor(customSeed, dark, customShade)
+    }
     val seed = PaletteSeeds.getValue(palette)
     return if (dark) {
         darkColorScheme(
@@ -230,6 +246,106 @@ private fun schemeFor(palette: PaletteId, dark: Boolean): ColorScheme {
         )
     }
 }
+
+/**
+ * Builds a tonal Material scheme from an arbitrary seed colour. A simple HSB
+ * pivot: the seed becomes the primary, its hue rotated ±40° drives secondary /
+ * tertiary, and the surfaces shift toward the seed by [shade] (0..1) so the
+ * custom background actually looks custom. Good contrast approximation: on
+ * colours are derived from luminance rather than hand-picked pairs.
+ */
+private fun seedSchemeFor(seed: Color, dark: Boolean, shade: Float): ColorScheme {
+    val hsb = FloatArray(3)
+    android.graphics.Color.colorToHSV(seed.toArgb(), hsb)
+    val hue = hsb[0]
+    val saturation = hsb[1]
+    val shadeClamped = shade.coerceIn(0f, 1f)
+
+    fun withHue(deg: Float, satScale: Float = 1f, valueScale: Float = 1f): Color {
+        val h = (hue + deg + 360f) % 360f
+        val s = (saturation * satScale).coerceIn(0f, 1f)
+        val v = (hsb[2] * valueScale).coerceIn(0f, 1f)
+        return Color(android.graphics.Color.HSVToColor(floatArrayOf(h, s, v)))
+    }
+
+    val primary = seed
+    val secondary = withHue(40f, 1.1f, 0.9f)
+    val tertiary = withHue(-40f, 0.9f, 1.05f)
+    val background = when {
+        dark -> Night.lerp(primary, 0.12f + shadeClamped * 0.12f)
+        else -> Color.White.lerp(primary, 0.03f + shadeClamped * 0.05f)
+    }
+    val onBackground = if (dark) NightText else Ink
+    val surfaceContainer = when {
+        dark -> NightContainer.lerp(primary, 0.16f + shadeClamped * 0.10f)
+        else -> PaperContainer.lerp(primary, 0.10f + shadeClamped * 0.10f)
+    }
+
+    val lightPrimary = primary.luminance() > 0.5f
+    val onPrimary = if (lightPrimary) Color(0xFF101418) else Color.White
+    val primaryContainer = if (dark) {
+        primary.lerp(Color.White, 0.18f)
+    } else {
+        primary.lerp(Color.White, 0.78f)
+    }
+    val onPrimaryContainer = if (dark) {
+        primary.lerp(Color.White, 0.75f)
+    } else {
+        primary.lerp(Color.Black, 0.72f)
+    }
+
+    if (dark) {
+        return darkColorScheme(
+            primary = primary,
+            onPrimary = onPrimary,
+            primaryContainer = primaryContainer,
+            onPrimaryContainer = onPrimaryContainer,
+            secondary = secondary,
+            tertiary = tertiary,
+            background = background,
+            onBackground = onBackground,
+            surface = background,
+            onSurface = onBackground,
+            surfaceContainer = surfaceContainer,
+            surfaceContainerLow = background,
+            surfaceContainerLowest = background.lerp(Color.Black, 0.25f),
+            surfaceContainerHigh = surfaceContainer.lerp(Color.White, 0.05f),
+            surfaceContainerHighest = surfaceContainer.lerp(Color.White, 0.09f),
+            surfaceVariant = surfaceContainer.lerp(Color.White, 0.12f),
+            onSurfaceVariant = Color(0xFFC1C7CE),
+            outline = Color(0xFF8B929A),
+            outlineVariant = surfaceContainer.lerp(Color.White, 0.14f),
+            error = Color(0xFFFFB4AB),
+            onError = Color(0xFF690005)
+        )
+    }
+    return lightColorScheme(
+        primary = primary,
+        onPrimary = onPrimary,
+        primaryContainer = primaryContainer,
+        onPrimaryContainer = onPrimaryContainer,
+        secondary = secondary,
+        tertiary = tertiary,
+        background = background,
+        onBackground = onBackground,
+        surface = background,
+        onSurface = onBackground,
+        surfaceContainer = surfaceContainer,
+        surfaceContainerLow = background,
+        surfaceContainerLowest = Color.White,
+        surfaceContainerHigh = surfaceContainer.lerp(Color.White, 0.35f),
+        surfaceContainerHighest = surfaceContainer.lerp(Color.White, 0.25f),
+        surfaceVariant = surfaceContainer.lerp(Color.White, 0.30f),
+        onSurfaceVariant = InkMuted,
+        outline = Color(0xFF71787F),
+        outlineVariant = Color(0xFFC1C7CE),
+        error = Color(0xFFBA1A1A),
+        onError = Color.White
+    )
+}
+
+private fun Color.lerp(other: Color, fraction: Float): Color =
+    androidx.compose.ui.graphics.lerp(this, other, fraction.coerceIn(0f, 1f))
 
 /** How the app resolves light / dark. */
 enum class ThemeMode { System, Light, Dark }
@@ -295,6 +411,8 @@ fun LiquidUITheme(
     themeMode: ThemeMode = ThemeMode.System,
     visualMode: VisualMode = VisualMode.Glass,
     palette: PaletteId = PaletteId.Aurora,
+    customSeed: Color = Color(0xFF3E8FE0),
+    customShade: Float = 0.5f,
     chrome: AppChrome = AppChrome(),
     content: @Composable () -> Unit
 ) {
@@ -309,7 +427,13 @@ fun LiquidUITheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        else -> schemeFor(palette, darkTheme)
+        else -> schemeFor(palette, darkTheme, customSeed, customShade)
+    }
+
+    val animatedScheme = if (chrome.reducedMotion) {
+        colorScheme
+    } else {
+        rememberAnimatedColorScheme(colorScheme, reducedMotion = false)
     }
 
     val view = LocalView.current
@@ -317,7 +441,7 @@ fun LiquidUITheme(
         SideEffect {
             val window = (view.context as Activity).window
             window.statusBarColor = Color.Transparent.toArgb()
-            window.navigationBarColor = colorScheme.background.toArgb()
+            window.navigationBarColor = animatedScheme.background.toArgb()
             WindowCompat.setDecorFitsSystemWindows(window, false)
             val controller = WindowCompat.getInsetsController(window, view)
             controller.isAppearanceLightStatusBars = !darkTheme
@@ -327,12 +451,71 @@ fun LiquidUITheme(
 
     CompositionLocalProvider(LocalAppChrome provides chrome) {
         MaterialTheme(
-            colorScheme = colorScheme,
+            colorScheme = animatedScheme,
             typography = Typography,
             shapes = if (chrome.cornerScale == 1f) Shapes else scaledShapes(chrome.cornerScale),
             content = content
         )
     }
+}
+
+/**
+ * Animates every [ColorScheme] role with one tween so a theme switch
+ * cross-fades. [animateColorAsState] remembers each role's previous value, so
+ * mid-transition colors lerp from the old scheme to the new instead of snapping.
+ */
+@Composable
+private fun rememberAnimatedColorScheme(target: ColorScheme, reducedMotion: Boolean): ColorScheme {
+    val spec = if (reducedMotion) {
+        androidx.compose.animation.core.tween<Color>(0)
+    } else {
+        androidx.compose.animation.core.tween<Color>(Motion.Duration.Standard)
+    }
+    @Composable
+    fun animated(role: Color, label: String): Color =
+        androidx.compose.animation.animateColorAsState(
+            role,
+            animationSpec = spec,
+            label = label
+        ).value
+    return ColorScheme(
+        primary = animated(target.primary, "primary"),
+        onPrimary = animated(target.onPrimary, "onPrimary"),
+        primaryContainer = animated(target.primaryContainer, "primaryContainer"),
+        onPrimaryContainer = animated(target.onPrimaryContainer, "onPrimaryContainer"),
+        inversePrimary = animated(target.inversePrimary, "inversePrimary"),
+        secondary = animated(target.secondary, "secondary"),
+        onSecondary = animated(target.onSecondary, "onSecondary"),
+        secondaryContainer = animated(target.secondaryContainer, "secondaryContainer"),
+        onSecondaryContainer = animated(target.onSecondaryContainer, "onSecondaryContainer"),
+        tertiary = animated(target.tertiary, "tertiary"),
+        onTertiary = animated(target.onTertiary, "onTertiary"),
+        tertiaryContainer = animated(target.tertiaryContainer, "tertiaryContainer"),
+        onTertiaryContainer = animated(target.onTertiaryContainer, "onTertiaryContainer"),
+        background = animated(target.background, "background"),
+        onBackground = animated(target.onBackground, "onBackground"),
+        surface = animated(target.surface, "surface"),
+        onSurface = animated(target.onSurface, "onSurface"),
+        surfaceVariant = animated(target.surfaceVariant, "surfaceVariant"),
+        onSurfaceVariant = animated(target.onSurfaceVariant, "onSurfaceVariant"),
+        surfaceTint = animated(target.surfaceTint, "surfaceTint"),
+        inverseSurface = animated(target.inverseSurface, "inverseSurface"),
+        inverseOnSurface = animated(target.inverseOnSurface, "inverseOnSurface"),
+        error = animated(target.error, "error"),
+        onError = animated(target.onError, "onError"),
+        errorContainer = animated(target.errorContainer, "errorContainer"),
+        onErrorContainer = animated(target.onErrorContainer, "onErrorContainer"),
+        outline = animated(target.outline, "outline"),
+        outlineVariant = animated(target.outlineVariant, "outlineVariant"),
+        scrim = animated(target.scrim, "scrim"),
+        surfaceBright = animated(target.surfaceBright, "surfaceBright"),
+        surfaceDim = animated(target.surfaceDim, "surfaceDim"),
+        surfaceContainer = animated(target.surfaceContainer, "surfaceContainer"),
+        surfaceContainerHigh = animated(target.surfaceContainerHigh, "surfaceContainerHigh"),
+        surfaceContainerHighest = animated(target.surfaceContainerHighest, "surfaceContainerHighest"),
+        surfaceContainerLow = animated(target.surfaceContainerLow, "surfaceContainerLow"),
+        surfaceContainerLowest = animated(target.surfaceContainerLowest, "surfaceContainerLowest")
+    )
 }
 
 /** Rebuilds the shape scale with every radius multiplied by [scale]. */

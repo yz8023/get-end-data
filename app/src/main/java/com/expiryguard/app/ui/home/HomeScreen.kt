@@ -28,13 +28,10 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.AddCircleOutline
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SnackbarDuration
@@ -66,7 +63,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -79,6 +75,10 @@ import com.expiryguard.app.ui.components.EmptyState
 import com.expiryguard.app.ui.components.GlassCard
 import com.expiryguard.app.ui.components.GradientBackground
 import com.expiryguard.app.ui.components.StatusBadge
+import com.expiryguard.app.ui.components.StatusBadgeCompleted
+import com.expiryguard.app.ui.liquid.components.GlassIconButton
+import com.expiryguard.app.ui.liquid.components.GlassTextField
+import com.expiryguard.app.ui.liquid.components.PrimaryButton
 import com.expiryguard.app.ui.theme.Blue500
 import com.expiryguard.app.ui.theme.Gray500
 import com.expiryguard.app.ui.theme.Green500
@@ -443,42 +443,19 @@ private fun SearchBar(
     onQueryChange: (String) -> Unit,
     onSearch: () -> Unit
 ) {
-    GlassCard(
-        onClick = onSearch,
-        shape = RoundedCornerShape(14.dp),
-        elevation = 3.dp
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Blue500.copy(alpha = 0.1f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = "搜索",
-                    tint = Blue500.copy(alpha = 0.7f),
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = if (query.isNotBlank()) query else "搜索清单名称或备注",
-                style = MaterialTheme.typography.bodyLarge,
-                color = if (query.isNotBlank())
-                    MaterialTheme.colorScheme.onSurface
-                else
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+    GlassTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = Modifier.fillMaxWidth(),
+        placeholder = "搜索清单名称或备注",
+        trailingIcon = {
+            GlassIconButton(
+                icon = Icons.Default.Search,
+                contentDescription = "搜索",
+                onClick = onSearch
             )
         }
-    }
+    )
 }
 
 /**
@@ -908,12 +885,16 @@ private fun ProductDetailSheet(
         else -> Green500
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp)
-            .padding(bottom = 32.dp)
+    GlassCard(
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        elevation = 0.dp
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp)
+        ) {
         // 拖拽指示条
         Box(
             modifier = Modifier
@@ -1057,17 +1038,11 @@ private fun ProductDetailSheet(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // 操作按钮
-        // 标记完成/取消完成
-        Button(
+        PrimaryButton(
             onClick = onMarkComplete,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(50.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = if (product.isCompleted) Gray500 else Green500
-            )
+                .height(50.dp)
         ) {
             Icon(
                 imageVector = Icons.Default.CheckCircle,
@@ -1080,8 +1055,8 @@ private fun ProductDetailSheet(
                 style = MaterialTheme.typography.titleSmall
             )
         }
-
         }
+    }
 }
 
 /**
@@ -1108,56 +1083,6 @@ private fun DetailInfoRow(
             style = MaterialTheme.typography.bodyMedium,
             color = valueColor,
             fontWeight = if (valueColor != MaterialTheme.colorScheme.onSurface) FontWeight.SemiBold else FontWeight.Normal
-        )
-    }
-}
-
-/**
- * 已处理状态标签 — 绿色处理徽标（已处理 / 已下架 / 已退货处理）
- */
-@Composable
-private fun StatusBadgeCompleted(label: String = "已处理") {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(Green500.copy(alpha = 0.18f))
-            .border(
-                width = 1.dp,
-                color = Green500.copy(alpha = 0.45f),
-                shape = RoundedCornerShape(6.dp)
-            )
-            .padding(horizontal = 10.dp, vertical = 5.dp)
-    ) {
-        // 左侧色条
-        Box(
-            modifier = Modifier
-                .width(2.dp)
-                .height(16.dp)
-                .clip(RoundedCornerShape(1.dp))
-                .background(Green500.copy(alpha = 0.85f))
-        )
-        Spacer(modifier = Modifier.width(6.dp))
-        // 发光圆点
-        Box(
-            modifier = Modifier
-                .size(8.dp)
-                .clip(CircleShape)
-                .background(Green500.copy(alpha = 0.4f))
-        )
-        Box(
-            modifier = Modifier
-                .size(5.dp)
-                .clip(CircleShape)
-                .background(Green500.copy(alpha = 0.9f))
-                .align(Alignment.CenterVertically)
-        )
-        Spacer(modifier = Modifier.width(5.dp))
-        Text(
-            text = label,
-            color = Green500.copy(alpha = 0.95f),
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold
         )
     }
 }
@@ -1193,19 +1118,15 @@ private fun FullScreenImageViewer(
                     .clickable(onClick = onDismiss),
                 contentScale = ContentScale.Fit
             )
-            IconButton(
+            GlassIconButton(
+                icon = Icons.Default.Close,
+                contentDescription = "关闭",
                 onClick = onDismiss,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(16.dp)
-                    .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "关闭",
-                    tint = Color.White
-                )
-            }
+                    .padding(16.dp),
+                tint = Color.White
+            )
         }
     }
 }

@@ -1,11 +1,13 @@
 package com.expiryguard.app.ui.liquid.components
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,21 +27,33 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import com.expiryguard.app.ui.liquid.motion.Motion
 import com.expiryguard.app.ui.liquid.motion.pressScale
 import com.expiryguard.app.ui.liquid.theme.AppShape
+import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 /** Primary action. Snappy press weight, no ripple. */
 @Composable
@@ -112,8 +126,9 @@ fun GlassIconButton(
 }
 
 /**
- * Compact switch sized to a text line (~20dp). The thumb slides with a spring
- * and the track colour cross-fades, so toggling reads as one motion.
+ * Compact switch sized to a text line (~20dp). The thumb is a draggable pip: it
+ * follows the finger, and on release snaps to whichever side is nearer while
+ * the track colour cross-fades — so toggling reads as one physical motion.
  */
 @Composable
 fun CompactSwitch(
@@ -126,6 +141,16 @@ fun CompactSwitch(
     val trackHeight = 26.dp
     val thumbSize = 20.dp
     val inset = 3.dp
+    val travelPx = with(LocalDensity.current) { (trackWidth - thumbSize - inset).toPx() }
+    val fraction = remember { Animatable(if (checked) 1f else 0f) }
+    val scope = rememberCoroutineScope()
+    val dragging = remember { mutableStateOf(false) }
+
+    LaunchedEffect(checked) {
+        if (!dragging.value) fraction.animateTo(if (checked) 1f else 0f, Motion.snappy(0.01f))
+    }
+
+    val thumbOffset = offsetDp(fraction.value, travelPx, trackWidth, thumbSize, inset)
 
     val trackColor by animateColorAsState(
         targetValue = when {
@@ -145,11 +170,6 @@ fun CompactSwitch(
         animationSpec = androidx.compose.animation.core.tween(Motion.Duration.Fast),
         label = "switchTrackBorder"
     )
-    val thumbOffset by animateDpAsState(
-        targetValue = if (checked) trackWidth - thumbSize - inset else inset,
-        animationSpec = Motion.snappy(0.01.dp),
-        label = "switchThumb"
-    )
     val thumbScale by animateFloatAsState(
         targetValue = if (checked) 1f else 0.94f,
         animationSpec = Motion.snappy(0.001f),
@@ -163,6 +183,40 @@ fun CompactSwitch(
             .clip(CircleShape)
             .background(trackColor)
             .border(1.dp, trackBorder, CircleShape)
+            .pointerInput(enabled) {
+                detectHorizontalDragGestures(
+                    onDragStart = {
+                        if (enabled) {
+                            dragging.value = true
+                            scope.launch { fraction.stop() }
+                        }
+                    },
+                    onDragEnd = {
+                        if (enabled) {
+                            dragging.value = false
+                            val newState = fraction.value > 0.5f
+                            scope.launch {
+                                fraction.animateTo(if (newState) 1f else 0f, Motion.snappy(0.01f))
+                            }
+                            if (newState != checked) onCheckedChange(newState)
+                        }
+                    },
+                    onDragCancel = {
+                        if (enabled) {
+                            dragging.value = false
+                            scope.launch {
+                                fraction.animateTo(if (checked) 1f else 0f, Motion.snappy(0.01f))
+                            }
+                        }
+                    },
+                    onHorizontalDrag = { change, dragAmount ->
+                        if (enabled) {
+                            change.consume()
+                            scope.launch { fraction.snapTo((fraction.value + dragAmount / travelPx).coerceIn(0f, 1f)) }
+                        }
+                    }
+                )
+            }
             .clickable(
                 enabled = enabled,
                 interactionSource = remember { MutableInteractionSource() },
@@ -184,9 +238,81 @@ fun CompactSwitch(
     }
 }
 
+@Composable
+private fun offsetDp(fraction: Float, travelPx: Float, trackWidth: Dp, thumbSize: Dp, inset: Dp): Dp =
+    with(LocalDensity.current) {
+        (inset.toPx() + travelPx * fraction).toDp()
+    }
+
 /**
- * Segmented control with a sliding glass thumb. Uses a single animated float
- * for the selection so the thumb never overshoots past the last segment.
+ * A bare colour/scale picker track: a horizontal gradient bar with a draggable
+ * thumb. Tap anywhere or drag the thumb; both translate to a value in 0..1.
+ */
+@Composable
+fun GradientBar(
+    colors: List<Color>,
+    fraction: Float,
+    onFractionChange: (Float) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val density = LocalDensity.current
+    val thumbSize = 20.dp
+    val thumbPx = with(density) { thumbSize.toPx() }
+    var barWidthPx by remember { mutableIntStateOf(0) }
+
+    fun fractionFromPosition(x: Float): Float =
+        ((x - thumbPx) / (barWidthPx - 2 * thumbPx).toFloat()).coerceIn(0f, 1f)
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(28.dp)
+            .onSizeChanged { barWidthPx = it.width }
+            .pointerInput(colors, barWidthPx, thumbPx) {
+                detectHorizontalDragGestures(
+                    onDragStart = { offset ->
+                        onFractionChange(fractionFromPosition(offset.x))
+                    },
+                    onHorizontalDrag = { change, _ ->
+                        change.consume()
+                        onFractionChange(fractionFromPosition(change.position.x))
+                    }
+                )
+            }
+            .pointerInput(colors, barWidthPx, thumbPx) {
+                detectTapGestures { offset ->
+                    onFractionChange(fractionFromPosition(offset.x))
+                }
+            }
+            .padding(horizontal = thumbSize)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(8.dp)
+                .align(Alignment.Center)
+                .clip(CircleShape)
+                .background(Brush.horizontalGradient(colors))
+                .border(1.dp, Color.White.copy(alpha = 0.5f), CircleShape)
+        )
+        Box(
+            modifier = Modifier
+                .offset(x = with(density) { ((barWidthPx - 2 * thumbPx) * fraction).toDp() })
+                .size(thumbSize)
+                .align(Alignment.CenterStart)
+                .shadow(2.dp, CircleShape)
+                .background(Color.White, CircleShape)
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+        )
+    }
+}
+
+/**
+ * Segmented control with a sliding glass thumb. The thumb tracks a draggable
+ * float position: tap a segment to jump, or drag horizontally across the whole
+ * track and release — the thumb snaps to the nearest segment with a spring.
+ * Uses a single animated float so the thumb never overshoots past the last
+ * segment.
  */
 @Composable
 fun SegmentedTabs(
@@ -195,19 +321,55 @@ fun SegmentedTabs(
     onSelected: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val progress by animateFloatAsState(
-        targetValue = selectedIndex.toFloat(),
-        animationSpec = Motion.snappy(0.001f),
-        label = "segment"
-    )
+    val scope = rememberCoroutineScope()
+    var widthPx by remember { mutableIntStateOf(0) }
+    val fraction = remember { Animatable(selectedIndex.toFloat()) }
+    val dragging = remember { mutableStateOf(false) }
+
+    LaunchedEffect(selectedIndex) {
+        if (!dragging.value) fraction.animateTo(selectedIndex.toFloat(), Motion.snappy(0.001f))
+    }
+
     Row(
         modifier = modifier
+            .onSizeChanged { widthPx = it.width }
             .liquidGlass(shape = AppShape.control, elevation = 0.dp, borderAlpha = 0.28f)
+            .pointerInput(labels.size, selectedIndex) {
+                detectHorizontalDragGestures(
+                    onDragStart = {
+                        dragging.value = true
+                        scope.launch { fraction.stop() }
+                    },
+                    onDragEnd = {
+                        dragging.value = false
+                        val target = fraction.value.roundToInt().coerceIn(0, labels.lastIndex)
+                        scope.launch {
+                            fraction.animateTo(target.toFloat(), Motion.snappy(0.001f))
+                        }
+                        if (target != selectedIndex) onSelected(target)
+                    },
+                    onDragCancel = {
+                        dragging.value = false
+                        scope.launch {
+                            fraction.animateTo(selectedIndex.toFloat(), Motion.snappy(0.001f))
+                        }
+                    },
+                    onHorizontalDrag = { change, dragAmount ->
+                        change.consume()
+                        val step = if (widthPx > 0) widthPx / labels.size.toFloat() else 1f
+                        scope.launch {
+                            fraction.snapTo(
+                                (fraction.value + dragAmount / step).coerceIn(0f, (labels.size - 1).toFloat())
+                            )
+                        }
+                    }
+                )
+            }
             .padding(4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         labels.forEachIndexed { index, label ->
-            val distance = kotlin.math.abs(progress - index).coerceIn(0f, 1f)
+            val distance = kotlin.math.abs(fraction.value - index).coerceIn(0f, 1f)
             val selectedness = 1f - distance
             Box(
                 modifier = Modifier

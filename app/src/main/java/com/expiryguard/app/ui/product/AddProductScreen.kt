@@ -6,10 +6,7 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,23 +30,14 @@ import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -75,8 +63,12 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.expiryguard.app.ui.components.DateInputField
 import com.expiryguard.app.ui.components.GlassCard
-import com.expiryguard.app.ui.components.GradientBackground
 import com.expiryguard.app.ui.components.GlassTopAppBar
+import com.expiryguard.app.ui.components.GradientBackground
+import com.expiryguard.app.ui.liquid.components.GlassIconButton
+import com.expiryguard.app.ui.liquid.components.GlassTextField
+import com.expiryguard.app.ui.liquid.components.PrimaryButton
+import com.expiryguard.app.ui.liquid.components.SecondaryButton
 import com.expiryguard.app.ui.theme.Blue500
 import com.expiryguard.app.ui.theme.Gray500
 import com.expiryguard.app.ui.theme.Green500
@@ -164,7 +156,7 @@ fun AddProductScreen(
             GlassTopAppBar(
                 title = { Text("添加清单") },
                 navigationIcon = {
-                    TextButton(onClick = onNavigateBack) {
+                    SecondaryButton(onClick = onNavigateBack) {
                         Text("取消")
                     }
                 },
@@ -191,20 +183,14 @@ fun AddProductScreen(
                 )
 
                 GlassCard(modifier = Modifier.fillMaxWidth()) {
-                    OutlinedTextField(
+                    GlassTextField(
                         value = uiState.name,
                         onValueChange = { viewModel.updateName(it) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(8.dp),
-                        placeholder = { Text("可选，如「酸奶」「洗发水」") },
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-                        )
+                        placeholder = "可选，如「酸奶」「洗发水」",
+                        singleLine = true
                     )
                 }
 
@@ -243,7 +229,7 @@ fun AddProductScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // ========== 第二步：选到期日期 ==========
+                // ========== 第三步：选到期日期 ==========
                 SectionHeader(
                     step = "3",
                     title = "选择到期日",
@@ -260,7 +246,7 @@ fun AddProductScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // ========== 第三步：到期计算（生产日期 + 保质期） ==========
+                // ========== 第四步：到期计算（生产日期 + 保质期） ==========
                 SectionHeader(
                     step = "4",
                     title = "到期计算（可选）",
@@ -311,7 +297,7 @@ fun AddProductScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    OutlinedTextField(
+                    GlassTextField(
                         value = customDaysText,
                         onValueChange = { newValue ->
                             // 只允许输入数字
@@ -319,14 +305,13 @@ fun AddProductScreen(
                                 customDaysText = newValue
                             }
                         },
-                        label = { Text("自定义天数") },
-                        placeholder = { Text("例如：21") },
+                        label = "自定义天数",
+                        placeholder = "例如：21",
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp)
+                        modifier = Modifier.weight(1f)
                     )
-                    Button(
+                    PrimaryButton(
                         onClick = {
                             val days = customDaysText.toIntOrNull()
                             if (days != null && days > 0) {
@@ -334,7 +319,6 @@ fun AddProductScreen(
                             }
                         },
                         enabled = customDaysText.isNotEmpty() && customDaysText.toIntOrNull()?.let { it > 0 } == true,
-                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.height(56.dp)
                     ) {
                         Icon(
@@ -392,7 +376,7 @@ fun AddProductScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // ========== 第四步：选保质期分组 ==========
+                // ========== 第五步：选保质期分组 ==========
                 SectionHeader(
                     step = "5",
                     title = "选择保质期分组",
@@ -423,7 +407,7 @@ fun AddProductScreen(
                             .padding(top = 8.dp),
                         horizontalArrangement = Arrangement.End
                     ) {
-                        TextButton(
+                        SecondaryButton(
                             onClick = onNavigateToGroupManagement
                         ) {
                             Icon(
@@ -440,16 +424,12 @@ fun AddProductScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // 保存按钮
-                Button(
+                PrimaryButton(
                     onClick = { viewModel.saveProduct() },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp),
-                    enabled = !uiState.isSaving && uiState.expiryDate != null,
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
+                    enabled = !uiState.isSaving && uiState.expiryDate != null
                 ) {
                     if (uiState.isSaving) {
                         CircularProgressIndicator(
@@ -625,47 +605,30 @@ private fun GroupChip(
         Color(0xFFF97316)
     }
 
-    val bgColor by animateColorAsState(
-        targetValue = if (isSelected) groupColor.copy(alpha = 0.15f)
-        else MaterialTheme.colorScheme.surfaceVariant,
-        label = "bg"
-    )
-    val borderColor by animateColorAsState(
-        targetValue = if (isSelected) groupColor
-        else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-        label = "border"
-    )
-
-    Card(
-        onClick = onClick,
+    GlassCard(
         modifier = modifier,
+        selected = isSelected,
+        onClick = onClick,
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = bgColor),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isSelected) 4.dp else 2.dp
-        )
+        elevation = if (isSelected) 4.dp else 2.dp,
+        statusColor = groupColor
     ) {
-        Box(
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, borderColor, RoundedCornerShape(12.dp))
                 .padding(vertical = 10.dp)
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = group.name,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                )
-                Text(
-                    text = group.description,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Gray500
-                )
-            }
+            Text(
+                text = group.name,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+            )
+            Text(
+                text = group.description,
+                style = MaterialTheme.typography.labelSmall,
+                color = Gray500
+            )
         }
     }
 }
@@ -725,36 +688,19 @@ private fun PhotoSection(
                 .padding(12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            IconButton(
+            GlassIconButton(
+                icon = Icons.Default.PhotoLibrary,
+                contentDescription = "从相册选择",
                 onClick = onPickFromGallery,
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f))
-                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.PhotoLibrary,
-                    contentDescription = "从相册选择",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+                tint = MaterialTheme.colorScheme.primary
+            )
 
-            IconButton(
+            GlassIconButton(
+                icon = Icons.Default.CameraAlt,
+                contentDescription = "拍照",
                 onClick = onTakePhoto,
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.CameraAlt,
-                    contentDescription = "拍照",
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
+                tint = MaterialTheme.colorScheme.onPrimary
+            )
         }
     }
 }
