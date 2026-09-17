@@ -33,7 +33,6 @@ data class SettingsUiState(
     val reminderDays: Int = 7,
     val autoCleanupDays: Int = 30,
     val isDarkModeEnabled: Boolean = false,
-    val isMonetEnabled: Boolean = false,
     val takeDownDays: Int = 2,
     val appVersion: String = "1.0.0"
 )
@@ -59,7 +58,6 @@ class SettingsViewModel @Inject constructor(
         private val KEY_REMINDER_DAYS = intPreferencesKey("reminder_days")
         private val KEY_AUTO_CLEANUP_DAYS = intPreferencesKey("auto_cleanup_days")
         private val KEY_DARK_MODE_ENABLED = booleanPreferencesKey("dark_mode_enabled")
-        private val KEY_MONET_ENABLED = booleanPreferencesKey("monet_enabled")
         private val KEY_TAKE_DOWN_DAYS = intPreferencesKey("take_down_days")
     }
 
@@ -75,7 +73,6 @@ class SettingsViewModel @Inject constructor(
                     reminderDays = preferences[KEY_REMINDER_DAYS] ?: 7,
                     autoCleanupDays = preferences[KEY_AUTO_CLEANUP_DAYS] ?: 30,
                     isDarkModeEnabled = preferences[KEY_DARK_MODE_ENABLED] ?: false,
-                    isMonetEnabled = preferences[KEY_MONET_ENABLED] ?: false,
                     takeDownDays = preferences[KEY_TAKE_DOWN_DAYS] ?: 2,
                     appVersion = versionName
                 )
@@ -128,18 +125,6 @@ class SettingsViewModel @Inject constructor(
             dataStore.edit { preferences ->
                 val current = preferences[KEY_DARK_MODE_ENABLED] ?: false
                 preferences[KEY_DARK_MODE_ENABLED] = !current
-            }
-        }
-    }
-
-    /**
-     * 切换莫奈取色
-     */
-    fun toggleMonet() {
-        viewModelScope.launch {
-            dataStore.edit { preferences ->
-                val current = preferences[KEY_MONET_ENABLED] ?: false
-                preferences[KEY_MONET_ENABLED] = !current
             }
         }
     }

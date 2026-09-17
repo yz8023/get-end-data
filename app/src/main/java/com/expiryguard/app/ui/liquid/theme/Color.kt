@@ -102,6 +102,15 @@ internal val GalaxyDarkContainer = Color(0xFF303D8C)
 internal val GalaxyDarkSecondary = Color(0xFFC2C4DD)
 internal val GalaxyDarkTertiary = Color(0xFFE2B4EB)
 
+internal val MonetLightPrimary = Color(0xFF376E63)
+internal val MonetLightContainer = Color(0xFFC5EBDF)
+internal val MonetLightSecondary = Color(0xFF6E5F84)
+internal val MonetLightTertiary = Color(0xFF7C8A4E)
+internal val MonetDarkPrimary = Color(0xFF9AD6C8)
+internal val MonetDarkContainer = Color(0xFF20574B)
+internal val MonetDarkSecondary = Color(0xFFD4C6EB)
+internal val MonetDarkTertiary = Color(0xFFC3D185)
+
 // ---------------------------------------------------------------------------
 // Decorative background (the layer the liquid glass refracts)
 // ---------------------------------------------------------------------------

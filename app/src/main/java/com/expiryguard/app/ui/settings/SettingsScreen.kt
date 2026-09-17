@@ -225,21 +225,6 @@ fun SettingsScreen(
                         )
                     }
                 }
-                item(key = "switch_monet") {
-                    PreferenceCard {
-                        PreferenceRow(
-                            icon = Icons.Default.ColorLens,
-                            title = "莫奈取色",
-                            subtitle = if (uiState.isMonetEnabled) "已开启（使用系统壁纸色调）" else "已关闭",
-                            trailing = {
-                                CompactSwitch(
-                                    checked = uiState.isMonetEnabled,
-                                    onCheckedChange = { viewModel.toggleMonet() }
-                                )
-                            }
-                        )
-                    }
-                }
                 item(key = "card_glass_style") {
                     GlassStyleCard(settings = settings)
                 }
@@ -649,7 +634,7 @@ private fun HueSaturationPicker(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(24.dp)
+                .height(36.dp)
                 .clip(CircleShape)
                 .background(
                     Brush.horizontalGradient(
@@ -668,6 +653,7 @@ private fun HueSaturationPicker(
                 onValueChange = { newHue ->
                     onSeedChange(rebuild(newHue, saturation))
                 },
+                valueRange = 0f..360f,
                 colors = hueSliderColors.copy(
                     thumbColor = Color(
                         android.graphics.Color.HSVToColor(

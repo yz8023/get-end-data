@@ -38,7 +38,6 @@ class MainActivity : ComponentActivity() {
     lateinit var repository: ProductRepository
 
     private val KEY_DARK_MODE = booleanPreferencesKey("dark_mode_enabled")
-    private val KEY_MONET = booleanPreferencesKey("monet_enabled")
     private val KEY_NOTIFICATION_ENABLED = booleanPreferencesKey("notification_enabled")
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -89,17 +88,11 @@ class MainActivity : ComponentActivity() {
             preferences[KEY_DARK_MODE] ?: false
         }
 
-        val monetFlow = dataStore.data.map { preferences ->
-            preferences[KEY_MONET] ?: false
-        }
-
         setContent {
             val isDarkMode by darkModeFlow.collectAsState(initial = false)
-            val isMonetEnabled by monetFlow.collectAsState(initial = false)
 
             ExpiryGuardTheme(
-                darkTheme = isDarkMode,
-                monetEnabled = isMonetEnabled
+                darkTheme = isDarkMode
             ) {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     AppNavigation()
