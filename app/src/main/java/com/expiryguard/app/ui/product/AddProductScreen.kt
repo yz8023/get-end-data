@@ -76,6 +76,7 @@ import coil.request.ImageRequest
 import com.expiryguard.app.ui.components.DateInputField
 import com.expiryguard.app.ui.components.GlassCard
 import com.expiryguard.app.ui.components.GradientBackground
+import com.expiryguard.app.ui.components.GlassTopAppBar
 import com.expiryguard.app.ui.theme.Blue500
 import com.expiryguard.app.ui.theme.Gray500
 import com.expiryguard.app.ui.theme.Green500
@@ -160,7 +161,7 @@ fun AddProductScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            GlassTopAppBar(
                 title = { Text("添加清单") },
                 navigationIcon = {
                     TextButton(onClick = onNavigateBack) {

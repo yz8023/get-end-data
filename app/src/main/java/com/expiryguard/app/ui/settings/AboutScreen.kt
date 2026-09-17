@@ -38,6 +38,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.expiryguard.app.ui.components.GlassCard
 import com.expiryguard.app.ui.components.GradientBackground
+import com.expiryguard.app.ui.components.GlassTopAppBar
 import com.expiryguard.app.ui.theme.Blue500
 import com.expiryguard.app.ui.theme.Green500
 import com.expiryguard.app.ui.theme.Purple500
@@ -54,7 +55,7 @@ fun AboutScreen(
 ) {
     Scaffold(
         topBar = {
-            TopAppBar(
+            GlassTopAppBar(
                 title = { Text("关于") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {

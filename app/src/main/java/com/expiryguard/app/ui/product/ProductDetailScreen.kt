@@ -48,6 +48,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -58,6 +59,7 @@ import coil.request.ImageRequest
 import com.expiryguard.app.data.db.entity.ProductEntity
 import com.expiryguard.app.domain.model.ProductStatus
 import com.expiryguard.app.ui.components.StatusBadge
+import com.expiryguard.app.ui.components.GlassTopAppBar
 import com.expiryguard.app.ui.theme.Blue500
 import com.expiryguard.app.ui.theme.Gray500
 import com.expiryguard.app.ui.theme.Green500
@@ -130,8 +132,9 @@ fun ProductDetailScreen(
     }
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
+            GlassTopAppBar(
                 title = { Text("清单详情") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {

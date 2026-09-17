@@ -1,85 +1,25 @@
 package com.expiryguard.app.ui.theme
 
-import android.app.Activity
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
-import androidx.core.view.WindowCompat
+import com.expiryguard.app.ui.liquid.motion.Motion
+import com.expiryguard.app.ui.liquid.screens.rememberAppSettingsState
+import com.expiryguard.app.ui.liquid.theme.AppChrome
+import com.expiryguard.app.ui.liquid.theme.LiquidUITheme
+import com.expiryguard.app.ui.liquid.theme.ThemeMode
+import com.expiryguard.app.ui.liquid.theme.VisualMode
 
 /**
- * 浅色主题配色方案
- */
-private val LightColorScheme = lightColorScheme(
-    primary = Blue600,
-    onPrimary = Color.White,
-    primaryContainer = Blue400.copy(alpha = 0.2f),
-    onPrimaryContainer = Blue700,
-    secondary = Purple500,
-    onSecondary = Color.White,
-    secondaryContainer = Purple400.copy(alpha = 0.15f),
-    onSecondaryContainer = Purple500,
-    tertiary = Green500,
-    onTertiary = Color.White,
-    tertiaryContainer = Green400.copy(alpha = 0.15f),
-    background = Background,
-    onBackground = OnBackgroundLight,
-    surface = SurfaceLight,
-    onSurface = OnSurfaceLight,
-    surfaceVariant = Gray100,
-    onSurfaceVariant = Gray500,
-    error = Red500,
-    onError = Color.White,
-    errorContainer = Red400.copy(alpha = 0.15f),
-    onErrorContainer = Red600,
-    outline = Gray200,
-    outlineVariant = Gray100
-)
-
-/**
- * 深色主题配色方案
- */
-private val DarkColorScheme = darkColorScheme(
-    primary = Blue400,
-    onPrimary = Color(0xFF003258),
-    primaryContainer = Blue700,
-    onPrimaryContainer = Blue400,
-    secondary = Purple400,
-    onSecondary = Color(0xFF381E72),
-    secondaryContainer = Purple500.copy(alpha = 0.2f),
-    onSecondaryContainer = Purple400,
-    tertiary = Green400,
-    onTertiary = Color(0xFF00391C),
-    tertiaryContainer = Green600.copy(alpha = 0.2f),
-    background = DarkBackground,
-    onBackground = OnBackgroundDark,
-    surface = DarkSurface,
-    onSurface = OnSurfaceDark,
-    surfaceVariant = DarkSurface,
-    onSurfaceVariant = Gray500,
-    error = Red400,
-    onError = Color(0xFF601410),
-    errorContainer = Red600.copy(alpha = 0.2f),
-    onErrorContainer = Red400,
-    outline = Gray500,
-    outlineVariant = DarkSurface
-)
-
-/**
- * ExpiryGuard 主题，统一管理颜色和排版。
+ * ExpiryGuard 主题。
  *
- * @param darkTheme 是否使用深色主题，默认跟随系统设置
- * @param monetEnabled 是否启用莫奈动态取色
- * @param content 可组合内容
+ * 在 Liquid Motion UI（液态玻璃设计系统）之上做一层业务桥接：
+ * - 业务侧继续只关心「深色 / 莫奈取色」两个开关；
+ * - 玻璃透明度、折射率、圆角缩放、弹簧阻尼、主题配色等外观旋钮由
+ *   [com.expiryguard.app.ui.liquid.screens.AppSettingsState] 持久化驱动。
+ *
+ * @param darkTheme 是否使用深色主题，默认跟随系统
+ * @param monetEnabled 是否启用 Material You 动态取色（映射到 MD3 视觉模式）
  */
 @Composable
 fun ExpiryGuardTheme(
@@ -87,27 +27,31 @@ fun ExpiryGuardTheme(
     monetEnabled: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        monetEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+    val settings = rememberAppSettingsState()
+
+    // 动态取色优先级最高；否则使用用户选择的三态视觉风格。
+    val visualMode = if (monetEnabled) VisualMode.Md3 else settings.visualMode
+
+    val chrome = AppChrome(
+        visualMode = visualMode,
+        glassOpacity = settings.glassOpacity,
+        glassRefraction = settings.glassRefraction,
+        cornerScale = settings.cornerScale,
+        reducedMotion = settings.reducedMotion,
+        motionDamping = settings.motionDamping,
+        wallpaperBackground = settings.wallpaperBackground
+    )
+
+    // 全局弹簧阻尼旋钮：一个值重调全应用动效手感。
+    SideEffect {
+        Motion.motionDamping.floatValue = settings.motionDamping
     }
 
-    val view = LocalView.current
-    if (!view.isInEditMode) {
-        SideEffect {
-            val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.surface.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
-        }
-    }
-
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
+    LiquidUITheme(
+        themeMode = if (darkTheme) ThemeMode.Dark else ThemeMode.Light,
+        visualMode = visualMode,
+        palette = settings.palette,
+        chrome = chrome,
         content = content
     )
 }

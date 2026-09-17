@@ -2,10 +2,13 @@ package com.expiryguard.app.ui.settings
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoDelete
@@ -32,6 +36,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -40,6 +45,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -55,7 +61,14 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.expiryguard.app.ui.components.GlassCard
+import com.expiryguard.app.ui.components.GlassTopAppBar
 import com.expiryguard.app.ui.components.GradientBackground
+import com.expiryguard.app.ui.liquid.components.SegmentedTabs
+import com.expiryguard.app.ui.liquid.screens.AppSettingsState
+import com.expiryguard.app.ui.liquid.screens.rememberAppSettingsState
+import com.expiryguard.app.ui.liquid.theme.PaletteId
+import com.expiryguard.app.ui.liquid.theme.VisualMode
+import com.expiryguard.app.ui.liquid.theme.palettePrimaryLight
 import com.expiryguard.app.ui.theme.Blue500
 import com.expiryguard.app.ui.theme.Green500
 import com.expiryguard.app.ui.theme.Orange500
@@ -80,6 +93,7 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val settings = rememberAppSettingsState()
 
     // 自动清理天数选择对话框
     var showAutoCleanupDialog by remember { mutableStateOf(false) }
@@ -89,8 +103,9 @@ fun SettingsScreen(
     var showExportDialog by remember { mutableStateOf(false) }
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
+            GlassTopAppBar(
                 title = { Text("设置") },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent
@@ -184,6 +199,9 @@ fun SettingsScreen(
                         checked = uiState.isMonetEnabled,
                         onCheckedChange = { viewModel.toggleMonet() }
                     )
+                }
+                item(key = "card_glass_style") {
+                    GlassStyleCard(settings = settings)
                 }
 
                 // 清理
@@ -600,4 +618,134 @@ private fun ExportDialog(
             }
         }
     )
+}
+
+/**
+ * 液态玻璃外观设置卡片
+ * 提供视觉风格切换、主题配色选择与玻璃质感参数调节，
+ * 全部写入 [AppSettingsState]，由主题桥接层即时生效。
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun GlassStyleCard(settings: AppSettingsState) {
+    GlassCard(shape = RoundedCornerShape(16.dp), elevation = 2.dp) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Text(
+                text = "液态玻璃外观",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.height(12.dp))
+
+            Text(
+                text = "视觉风格",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(6.dp))
+            SegmentedTabs(
+                labels = VisualMode.entries.map { it.label },
+                selectedIndex = VisualMode.entries.indexOf(settings.visualMode),
+                onSelected = { index ->
+                    settings.updateVisualMode(VisualMode.entries[index])
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            Text(
+                text = "主题配色",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(6.dp))
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                PaletteId.entries.forEach { palette ->
+                    val selected = settings.palette == palette
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .background(palettePrimaryLight(palette))
+                            .border(
+                                width = if (selected) 3.dp else 1.dp,
+                                color = if (selected) {
+                                    MaterialTheme.colorScheme.onSurface
+                                } else {
+                                    MaterialTheme.colorScheme.outlineVariant
+                                },
+                                shape = CircleShape
+                            )
+                            .clickable { settings.updatePalette(palette) }
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            GlassSliderRow(
+                label = "玻璃透明度",
+                value = settings.glassOpacity,
+                valueRange = 0.3f..0.95f,
+                onValueChangeFinished = settings::updateGlassOpacity
+            )
+            GlassSliderRow(
+                label = "折射强度",
+                value = settings.glassRefraction,
+                valueRange = 0.3f..2f,
+                onValueChangeFinished = settings::updateGlassRefraction
+            )
+            GlassSliderRow(
+                label = "动效阻尼",
+                value = settings.motionDamping,
+                valueRange = 0.1f..0.9f,
+                onValueChangeFinished = settings::updateMotionDamping
+            )
+        }
+    }
+}
+
+/**
+ * 玻璃质感参数滑块行
+ */
+@Composable
+private fun GlassSliderRow(
+    label: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    onValueChangeFinished: (Float) -> Unit
+) {
+    var localValue by remember(value) { mutableFloatStateOf(value) }
+    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = String.format("%.2f", localValue),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Slider(
+            value = localValue,
+            onValueChange = { localValue = it },
+            onValueChangeFinished = { onValueChangeFinished(localValue) },
+            valueRange = valueRange,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
 }

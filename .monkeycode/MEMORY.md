@@ -31,6 +31,18 @@ Entries discovered by the Agent during task execution should follow this format:
 
 ## Entries
 
+[Project Knowledge Summary]
+- Date: 2026-09-17
+- Context: Discovered by Agent while porting ExpiryGuard 到 Liquid Motion UI 玻璃设计系统
+- Category: Build Methods
+- Instructions:
+  - 构建栈必须完全镜像 LiquidUI 模板：Kotlin 2.3.10 / AGP 8.7.3 / Gradle 8.11.1 / Compose BOM 2024.10.01 / compileSdk 36；backdrop 库是 Kotlin 2.3 元数据，升 Kotlin 是硬前提
+  - 玻璃层依赖 io.github.kyant0:backdrop-android:2.0.0-alpha03 + io.github.kyant0:shapes-android:1.2.0；com.kyant.shapes.Capsule 来自 shapes-android
+  - KSP 新版本号直接对齐 Kotlin（2.3.10）：`ksp("com.google.devtools.ksp:ksp-gradle-plugin:2.3.10")`，勿用旧 `<kotlin>-<ksp>` 形式
+  - 设计系统以 com.expiryguard.app.ui.liquid.* 内嵌到业务包，sed 重命名包名 com.monkeycode.liquidui.ui. → com.expiryguard.app.ui.ui.liquid 可能出错，需检查实际替换结果（本任务用 ui.liquid.）
+  - 根节点 aurora 作为可见背景+被采样 backdrop（layerBackdrop）；页内玻璃面板采样 LocalGlassBackdrop；悬浮底栏采样 rememberCombinedBackdrop(aurora, content) 且在内容层之外绘制避免采样反馈
+  - AppSettingsState（ui/liquid/screens/）以 SharedPreferences 文件 "liquidui.settings" 持久化外观旋钮（glassOpacity/glassRefraction/motionDamping/palette/visualMode 等），可用 rememberAppSettingsState() 直接读写
+
 [User Instruction Summary]
 - Date: 2026-08-14
 - Context: 用户反馈重新安装后记录全部丢失，并约定发布命名规范

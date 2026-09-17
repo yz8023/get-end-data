@@ -56,6 +56,7 @@ import com.expiryguard.app.data.db.entity.ProductEntity
 import com.expiryguard.app.domain.engine.ExpiryRuleEngine
 import com.expiryguard.app.domain.model.ProductStatus
 import com.expiryguard.app.ui.components.EmptyState
+import com.expiryguard.app.ui.components.GlassTopAppBar
 import com.expiryguard.app.ui.theme.Gray500
 import com.expiryguard.app.ui.theme.Green500
 import com.expiryguard.app.ui.theme.Red500
@@ -79,8 +80,9 @@ fun TrashScreen(
     val isMultiSelectMode by viewModel.isMultiSelectMode.collectAsStateWithLifecycle()
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(
+            GlassTopAppBar(
                 title = {
                     Column {
                         Text("回收站")

@@ -62,6 +62,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.expiryguard.app.data.db.entity.ShelfLifeGroupEntity
 import com.expiryguard.app.ui.components.GlassCard
 import com.expiryguard.app.ui.components.GradientBackground
+import com.expiryguard.app.ui.components.GlassTopAppBar
 import com.expiryguard.app.ui.theme.Gray500
 import com.expiryguard.app.ui.theme.Red500
 
@@ -98,7 +99,7 @@ fun ShelfLifeGroupManagementScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            GlassTopAppBar(
                 title = { Text("保质期分组管理") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {

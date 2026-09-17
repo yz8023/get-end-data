@@ -78,6 +78,7 @@ import com.expiryguard.app.ui.components.EmptyState
 import com.expiryguard.app.ui.components.GlassCard
 import com.expiryguard.app.ui.components.GlassCardSmall
 import com.expiryguard.app.ui.components.GradientBackground
+import com.expiryguard.app.ui.components.GlassTopAppBar
 import com.expiryguard.app.ui.components.ProductCard
 import com.expiryguard.app.ui.theme.Blue500
 import com.expiryguard.app.ui.theme.Gray500
@@ -158,7 +159,7 @@ fun ProductListScreen(
                 )
             } else {
                 // 正常模式顶部栏
-                TopAppBar(
+                GlassTopAppBar(
                     title = { Text("清单列表") },
                     actions = {
                         // 切换视图模式按钮
@@ -733,7 +734,7 @@ private fun MultiSelectTopBar(
     onBatchDelete: () -> Unit,
     onBatchNotes: () -> Unit
 ) {
-    TopAppBar(
+    GlassTopAppBar(
         title = {
             Text("已选 $selectedCount 项")
         },
