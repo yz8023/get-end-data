@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
@@ -177,3 +178,12 @@ fun rememberAppSettingsState(): AppSettingsState {
     val context = LocalContext.current.applicationContext
     return remember(context) { AppSettingsState(context) }
 }
+
+/**
+ * 应用级唯一 [AppSettingsState] 实例。
+ *
+ * 由 [com.expiryguard.app.ui.theme.ExpiryGuardTheme] 在根节点创建并提供，
+ * 主题桥接层与设置界面通过同一实例读写外观旋钮，改动即时生效。
+ * 参考版 LiquidUI 在 MainActivity 创建一次后向下传递，这里用 CompositionLocal 达到同样效果。
+ */
+val LocalAppSettings = staticCompositionLocalOf<AppSettingsState?> { null }

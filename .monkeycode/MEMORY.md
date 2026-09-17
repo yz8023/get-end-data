@@ -97,3 +97,11 @@ Entries discovered by the Agent during task execution should follow this format:
   - 标记手势语义：滑动一律标记「已下架」(TAKE_DOWN)；长按标记「已处理」(null)，已标记时长按在「下架↔已处理」间切换
   - 首页 TaskCard 滑动提示统一为「滑动标记下架」；详情弹层按钮统一为「标记已处理」；不再按商品状态推断 completedType（已删除 markActionLabel/completionTypeFor 辅助函数）
   - ProductListViewModel.swipeComplete 统一传 null（已处理），不再按状态推断
+
+[Project Knowledge Summary]
+- Date: 2026-09-17
+- Context: Discovered by Agent while fixing 「设置/关于界面操作无效」bug
+- Category: Troubleshooting & Debugging
+- Instructions:
+  - LiquidUI 外观旋钮必须通过唯一 AppSettingsState 实例读写：参考版在 MainActivity 创建一次向下传递；本工程用 CompositionLocal（LocalAppSettings，ExpiryGuardTheme 根节点 provide）共享同一实例，切勿在设置界面另建 rememberAppSettingsState()，否则改动只写 SharedPreferences、主题桥接层不重组、界面操作看似无效
+  - 版本号勿硬编码：AboutScreen 与 SettingsViewModel.appVersion 应从 PackageManager 读 versionName（getPackageInfo(...).versionName ?: "1.0.0"），与 build.gradle.kts versionName 保持一致

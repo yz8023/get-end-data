@@ -27,6 +27,7 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -161,15 +162,32 @@ fun AppNavigation() {
         bottomNavRoutes.any { baseRoute -> route == baseRoute || route.startsWith("$baseRoute?") }
     } ?: false
 
-    val selectedIndex = bottomNavItems.indexOfFirst { item ->
-        currentRoute?.let { route ->
-            item.route == route || route.startsWith("${item.route}?")
-        } == true
-    }.coerceAtLeast(0)
+    // 底部导航选中态：本地状态即时响应点击（与参考版一致），
+    // 再由路由变化回写，保证深链 / 返回键 / 状态恢复时高亮与页面同步。
+    var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
+
+    // 当前路由属于底部导航 Tab 时，将高亮与页面同步。
+    LaunchedEffect(currentRoute) {
+        val index = bottomNavItems.indexOfFirst { item ->
+            currentRoute?.let { route ->
+                item.route == route || route.startsWith("${item.route}?")
+            } == true
+        }
+        if (index >= 0) {
+            selectedIndex = index
+        }
+    }
 
     fun selectTab(index: Int) {
-        val route = bottomNavItems.getOrNull(index)?.route ?: return
-        navController.navigate(route) {
+        val item = bottomNavItems.getOrNull(index) ?: return
+        selectedIndex = index
+        // 已停留在该 Tab 时只更新选中态，避免 onClick 与 onTabSelected
+        // 二次触发导致的重复导航。
+        val alreadyOnTab = currentRoute?.let { route ->
+            item.route == route || route.startsWith("${item.route}?")
+        } == true
+        if (alreadyOnTab) return
+        navController.navigate(item.route) {
             popUpTo(navController.graph.findStartDestination().id) {
                 saveState = true
             }

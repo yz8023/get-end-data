@@ -371,10 +371,15 @@ class BackupRestoreViewModel @Inject constructor(
                 }
 
                 // 6. 恢复分类和分组（覆盖模式下已清空，增量模式下直接插入）
+                //    逐个插入分类并记录 旧id -> 新id 映射，供产品 categoryId 重映射，
+                //    确保跨设备恢复时分类关联不丢失（目标设备自增 id 可能与源设备不一致）。
+                val categoryIdMap = mutableMapOf<Long, Long>()
                 if (backupData.categories.isNotEmpty()) {
-                    repository.insertAllCategories(
-                        backupData.categories.map { it.copy(id = 0) }
-                    )
+                    backupData.categories.forEach { category ->
+                        repository.insertCategory(category.copy(id = 0)).onSuccess { newId ->
+                            categoryIdMap[category.id] = newId
+                        }
+                    }
                 }
                 if (backupData.shelfLifeGroups.isNotEmpty()) {
                     repository.insertAllGroups(
@@ -411,7 +416,7 @@ class BackupRestoreViewModel @Inject constructor(
                 }
                 _restoreProgress.value = 0.55f
 
-                // 9. 更新产品数据中的图片路径，重置 ID
+                // 9. 更新产品数据中的图片路径，重置 ID，重映射分类 ID
                 val updatedProducts = backupData.products.map { product ->
                     val newPhotoPath = if (product.photoPath != null) {
                         val oldFile = File(product.photoPath)
@@ -421,7 +426,8 @@ class BackupRestoreViewModel @Inject constructor(
                     }
                     product.copy(
                         id = 0,
-                        photoPath = newPhotoPath
+                        photoPath = newPhotoPath,
+                        categoryId = product.categoryId?.let { categoryIdMap[it] ?: it }
                     )
                 }
 

@@ -64,6 +64,9 @@ class SettingsViewModel @Inject constructor(
     }
 
     init {
+        val versionName = runCatching {
+            appContext.packageManager.getPackageInfo(appContext.packageName, 0).versionName ?: "1.0.0"
+        }.getOrDefault("1.0.0")
         // 从 DataStore 加载偏好设置
         viewModelScope.launch {
             dataStore.data.collect { preferences ->
@@ -74,7 +77,7 @@ class SettingsViewModel @Inject constructor(
                     isDarkModeEnabled = preferences[KEY_DARK_MODE_ENABLED] ?: false,
                     isMonetEnabled = preferences[KEY_MONET_ENABLED] ?: false,
                     takeDownDays = preferences[KEY_TAKE_DOWN_DAYS] ?: 2,
-                    appVersion = "1.0.0"
+                    appVersion = versionName
                 )
             }
         }

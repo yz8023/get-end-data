@@ -60,6 +60,7 @@ import com.expiryguard.app.ui.liquid.components.PreferenceRow
 import com.expiryguard.app.ui.liquid.components.SectionTitle
 import com.expiryguard.app.ui.liquid.components.SegmentedTabs
 import com.expiryguard.app.ui.liquid.screens.AppSettingsState
+import com.expiryguard.app.ui.liquid.screens.LocalAppSettings
 import com.expiryguard.app.ui.liquid.screens.rememberAppSettingsState
 import com.expiryguard.app.ui.liquid.theme.PaletteId
 import com.expiryguard.app.ui.liquid.theme.VisualMode
@@ -82,7 +83,8 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val settings = rememberAppSettingsState()
+    // 与主题桥接层共享同一个实例，外观旋钮改动即时生效。
+    val settings = LocalAppSettings.current ?: rememberAppSettingsState()
 
     // 自动清理天数选择对话框
     var showAutoCleanupDialog by remember { mutableStateOf(false) }

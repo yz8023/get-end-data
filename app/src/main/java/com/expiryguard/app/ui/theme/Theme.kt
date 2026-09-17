@@ -4,7 +4,9 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.CompositionLocalProvider
 import com.expiryguard.app.ui.liquid.motion.Motion
+import com.expiryguard.app.ui.liquid.screens.LocalAppSettings
 import com.expiryguard.app.ui.liquid.screens.rememberAppSettingsState
 import com.expiryguard.app.ui.liquid.theme.AppChrome
 import com.expiryguard.app.ui.liquid.theme.LiquidUITheme
@@ -48,13 +50,15 @@ fun ExpiryGuardTheme(
         Motion.motionDamping.floatValue = settings.motionDamping
     }
 
-    LiquidUITheme(
-        themeMode = if (darkTheme) ThemeMode.Dark else ThemeMode.Light,
-        visualMode = visualMode,
-        palette = settings.palette,
-        customSeed = Color(settings.customSeed),
-        customShade = settings.customShade,
-        chrome = chrome,
-        content = content
-    )
+    CompositionLocalProvider(LocalAppSettings provides settings) {
+        LiquidUITheme(
+            themeMode = if (darkTheme) ThemeMode.Dark else ThemeMode.Light,
+            visualMode = visualMode,
+            palette = settings.palette,
+            customSeed = Color(settings.customSeed),
+            customShade = settings.customShade,
+            chrome = chrome,
+            content = content
+        )
+    }
 }
