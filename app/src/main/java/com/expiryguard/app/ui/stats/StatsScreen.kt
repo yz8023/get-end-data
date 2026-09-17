@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -130,6 +131,7 @@ fun StatsScreen(
                         .fillMaxSize()
                         .padding(padding)
                         .padding(horizontal = 16.dp),
+                    contentPadding = PaddingValues(bottom = 108.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     // 概览区域：4 个 StatCard 横向排列，每行 2 个

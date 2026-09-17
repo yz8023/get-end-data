@@ -105,3 +105,12 @@ Entries discovered by the Agent during task execution should follow this format:
 - Instructions:
   - LiquidUI 外观旋钮必须通过唯一 AppSettingsState 实例读写：参考版在 MainActivity 创建一次向下传递；本工程用 CompositionLocal（LocalAppSettings，ExpiryGuardTheme 根节点 provide）共享同一实例，切勿在设置界面另建 rememberAppSettingsState()，否则改动只写 SharedPreferences、主题桥接层不重组、界面操作看似无效
   - 版本号勿硬编码：AboutScreen 与 SettingsViewModel.appVersion 应从 PackageManager 读 versionName（getPackageInfo(...).versionName ?: "1.0.0"），与 build.gradle.kts versionName 保持一致
+
+[Project Knowledge Summary]
+- Date: 2026-09-17
+- Context: Discovered by Agent while fixing v1.1.1 发布后反馈：恢复失败 ClassCastException + 底栏下方白色底层
+- Category: Troubleshooting & Debugging
+- Instructions:
+  - 恢复失败根因：Kotlin 对 `Gson.fromJson(data, BackupData::class.java) ?: throw` 的泛型 T 推断成 java.lang.Void，字节码 fromJson 后紧跟 `checkcast java/lang/Void`，任何非 null 返回都抛 ClassCastException，且该异常是 RuntimeException 不被 try 的 JsonSyntaxException catch 捕获；修复：先 `val parsed: BackupData = gson.fromJson(...)` 显式声明局部变量类型，再判 null
+  - LiquidUI 玻璃底栏正确接线范式（对齐参考版 AppRoot）：Scaffold 的 bottomBar 在 glassEnabled 时仅渲染胶囊（不放高度占位）；NavHost bottom padding 设为 0，内容全屏延伸到底；悬浮胶囊 align(BottomCenter).padding(bottom=14.dp) 且不用 navigationBarsPadding；各 Tab 页滚动容器自留 contentPadding bottom=108.dp 防胶囊遮挡
+  - 若保留 Scaffold bottomBar 高度占位，玻璃胶囊只采样到空白背景（浅色 AuroraLight 含纯白 0xFFFFFFFF），底栏下方呈现白色底层

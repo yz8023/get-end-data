@@ -10,8 +10,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -131,9 +129,6 @@ private val bottomNavItems = listOf(
 
 /** 需要显示底部导航栏的路由集合 */
 private val bottomNavRoutes = bottomNavItems.map { it.route }.toSet()
-
-/** 悬浮玻璃底栏为内容预留的高度（64dp 胶囊 + 上下留白） */
-private val BOTTOM_BAR_RESERVED_HEIGHT = 96.dp
 
 /**
  * 应用主导航组件。
@@ -274,27 +269,29 @@ fun AppNavigation() {
         Scaffold(
             containerColor = Color.Transparent,
             bottomBar = {
-                if (showBottomBar) {
-                    if (glassEnabled) {
-                        // 仅占位，真正的玻璃底栏悬浮在内容层之外，避免采样反馈。
-                        Box(
-                            Modifier
-                                .height(BOTTOM_BAR_RESERVED_HEIGHT)
-                                .navigationBarsPadding()
-                        )
-                    } else {
-                        SolidBottomTabs(
-                            selectedIndex = selectedIndex,
-                            onTabSelected = { selectTab(it) }
-                        )
-                    }
+                if (showBottomBar && !glassEnabled) {
+                    SolidBottomTabs(
+                        selectedIndex = selectedIndex,
+                        onTabSelected = { selectTab(it) }
+                    )
                 }
             }
         ) { innerPadding ->
             NavHost(
                 navController = navController,
                 startDestination = Screen.Home.route,
-                modifier = Modifier.padding(innerPadding)
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(
+                        top = innerPadding.calculateTopPadding(),
+                        bottom = if (glassEnabled) {
+                            // 玻璃模式下内容延伸到底部，由各页面自身预留
+                            // 悬浮胶囊的采样空间，与参考版一致。
+                            0.dp
+                        } else {
+                            innerPadding.calculateBottomPadding()
+                        }
+                    )
             ) {
                 // ==================== 首页 ====================
                 composable(Screen.Home.route) {
@@ -544,7 +541,6 @@ fun AppNavigation() {
                         tabsCount = bottomNavItems.size,
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
-                            .navigationBarsPadding()
                             .padding(bottom = 14.dp)
                     ) {
                         bottomNavItems.forEachIndexed { index, item ->

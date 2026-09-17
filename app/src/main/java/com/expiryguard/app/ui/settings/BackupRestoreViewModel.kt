@@ -345,9 +345,12 @@ class BackupRestoreViewModel @Inject constructor(
                     throw Exception("备份文件格式无效：缺少 data.json")
                 }
                 val dataJson = dataFile.readText()
-                val backupDataType = object : TypeToken<BackupData>() {}.type
                 val backupData: BackupData = try {
-                    gson.fromJson(dataJson, backupDataType) ?: throw Exception("备份文件数据解析失败")
+                    val parsed: BackupData? = gson.fromJson(dataJson, object : TypeToken<BackupData>() {}.type)
+                    if (parsed == null) {
+                        throw Exception("备份文件数据解析失败")
+                    }
+                    parsed
                 } catch (e: com.google.gson.JsonSyntaxException) {
                     throw Exception("备份文件格式不兼容（可能来自更旧版本）：${e.message}")
                 }

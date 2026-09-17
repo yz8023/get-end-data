@@ -178,7 +178,7 @@ fun HomeScreen(
                 GradientBackground {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
+                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 108.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         // 顶部：日期 + 问候语

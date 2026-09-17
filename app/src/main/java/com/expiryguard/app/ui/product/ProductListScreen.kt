@@ -714,7 +714,7 @@ private fun ProductList(
     onProductLongClick: (Long) -> Unit
 ) {
     LazyColumn(
-        contentPadding = PaddingValues(vertical = 8.dp),
+        contentPadding = PaddingValues(top = 8.dp, bottom = 116.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         items(products, key = { it.id }) { product ->
@@ -759,7 +759,7 @@ private fun ProductGrid(
 ) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+        contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 108.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
