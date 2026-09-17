@@ -11,7 +11,6 @@ import com.expiryguard.app.ui.liquid.screens.rememberAppSettingsState
 import com.expiryguard.app.ui.liquid.theme.AppChrome
 import com.expiryguard.app.ui.liquid.theme.LiquidUITheme
 import com.expiryguard.app.ui.liquid.theme.ThemeMode
-import com.expiryguard.app.ui.liquid.theme.VisualMode
 
 /**
  * ExpiryGuard 主题。
@@ -21,8 +20,12 @@ import com.expiryguard.app.ui.liquid.theme.VisualMode
  * - 玻璃透明度、折射率、圆角缩放、弹簧阻尼、主题配色等外观旋钮由
  *   [com.expiryguard.app.ui.liquid.screens.AppSettingsState] 持久化驱动。
  *
+ * 莫奈取色与视觉风格相互独立：
+ * - 莫奈取色只把配色方案替换为系统动态色（Material You），
+ *   不再强制切换 VisualMode.Md3，玻璃/普通视觉风格保持不变。
+ *
  * @param darkTheme 是否使用深色主题，默认跟随系统
- * @param monetEnabled 是否启用 Material You 动态取色（映射到 MD3 视觉模式）
+ * @param monetEnabled 是否启用 Material You 动态取色（仅影响配色方案）
  */
 @Composable
 fun ExpiryGuardTheme(
@@ -32,8 +35,7 @@ fun ExpiryGuardTheme(
 ) {
     val settings = rememberAppSettingsState()
 
-    // 动态取色优先级最高；否则使用用户选择的三态视觉风格。
-    val visualMode = if (monetEnabled) VisualMode.Md3 else settings.visualMode
+    val visualMode = settings.visualMode
 
     val chrome = AppChrome(
         visualMode = visualMode,
@@ -57,6 +59,7 @@ fun ExpiryGuardTheme(
             palette = settings.palette,
             customSeed = Color(settings.customSeed),
             customShade = settings.customShade,
+            useDynamicColors = monetEnabled,
             chrome = chrome,
             content = content
         )

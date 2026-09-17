@@ -129,8 +129,12 @@ class HomeViewModel @Inject constructor(
         val takeDownCompleted = completed.filter {
             it.completedType == ProductEntity.COMPLETED_TYPE_TAKE_DOWN
         }
+        // 已处理：仅保留当天完成的记录。
+        // 前一天「已处理」的清单次日不再显示在首页，避免与新操作混淆；
+        // 但「仅下架」（见上方 takeDownCompleted）不受此限制，持续显示。
         val processedCompleted = completed.filter {
-            it.completedType != ProductEntity.COMPLETED_TYPE_TAKE_DOWN
+            it.completedType != ProductEntity.COMPLETED_TYPE_TAKE_DOWN &&
+                DateUtils.isToday(it.completedAt ?: 0L)
         }
 
         // 待处理：剩下的未完成清单（排除今日到期、可退货、预警）

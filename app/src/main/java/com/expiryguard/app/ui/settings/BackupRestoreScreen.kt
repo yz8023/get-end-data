@@ -6,7 +6,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -277,6 +282,15 @@ fun BackupRestoreScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
+                        // 恢复模式选择
+                        RestoreModeSelector(
+                            selected = viewModel.restoreMode.collectAsState().value,
+                            enabled = !isBackingUp && !isRestoring,
+                            onSelect = viewModel::setRestoreMode
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
                         // 恢复进度条
                         AnimatedVisibility(
                             visible = isRestoring,
@@ -342,7 +356,7 @@ fun BackupRestoreScreen(
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            text = "恢复操作会添加所有备份中的数据到当前列表，不会删除现有数据。如果备份中包含大量图片，恢复过程可能需要一些时间。",
+                            text = "增量恢复：验证哈希值，跳过已存在的重复数据，保留现有内容。覆盖恢复：清空当前所有数据后恢复备份。如果备份中包含大量图片，恢复过程可能需要一些时间。",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
                             lineHeight = MaterialTheme.typography.bodySmall.lineHeight
@@ -352,6 +366,76 @@ fun BackupRestoreScreen(
 
                 // 底部留白
                 Spacer(modifier = Modifier.height(32.dp))
+            }
+        }
+    }
+}
+
+/**
+ * 恢复模式单选选择器
+ *
+ * 在增量恢复与覆盖恢复之间选择，使用选中态高亮边框 + 圆点指示。
+ */
+@Composable
+private fun RestoreModeSelector(
+    selected: RestoreMode,
+    enabled: Boolean,
+    onSelect: (RestoreMode) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        RestoreMode.entries.forEach { mode ->
+            val isSelected = mode == selected
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        color = if (isSelected) {
+                            Blue500.copy(alpha = 0.12f)
+                        } else {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
+                        },
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .border(
+                        border = BorderStroke(
+                            width = 1.dp,
+                            color = if (isSelected) Blue500 else Color.Transparent
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .clickable(enabled = enabled) { onSelect(mode) }
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(18.dp)
+                        .background(
+                            color = if (isSelected) Blue500 else Color.Transparent,
+                            shape = RoundedCornerShape(9.dp)
+                        )
+                        .border(
+                            border = BorderStroke(2.dp, if (isSelected) Blue500 else Blue500.copy(alpha = 0.6f)),
+                            shape = RoundedCornerShape(9.dp)
+                        )
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = mode.label,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = mode.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
             }
         }
     }

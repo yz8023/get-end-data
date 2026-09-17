@@ -33,6 +33,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -45,7 +46,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -538,6 +541,15 @@ private fun GlassStyleCard(settings: AppSettingsState) {
                 }
             }
 
+            // 无极调色：选中「自定义」后显示连续 HSV 调色器
+            if (settings.palette == PaletteId.Custom) {
+                Spacer(Modifier.height(12.dp))
+                HueSaturationPicker(
+                    seed = Color(settings.customSeed),
+                    onSeedChange = settings::updateCustomSeed
+                )
+            }
+
             Spacer(Modifier.height(16.dp))
 
             GlassSliderRow(
@@ -594,6 +606,93 @@ private fun GlassSliderRow(
             onValueChange = { localValue = it },
             onValueChangeFinished = { onValueChangeFinished(localValue) },
             valueRange = valueRange,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+/**
+ * 无极调色器：色相 + 饱和度滑杆叠加在彩虹渐变轨道上，
+ * 拖动时实时重算 0xFF 主色并写回 customSeed，主题立即跟随。
+ */
+@Composable
+private fun HueSaturationPicker(
+    seed: Color,
+    onSeedChange: (Color) -> Unit
+) {
+    val hsv = FloatArray(3)
+    android.graphics.Color.colorToHSV(seed.toArgb(), hsv)
+    val hue = hsv[0]
+    val saturation = hsv[1]
+    val value = hsv[2]
+
+    // 实时构造新主色：色相、饱和度可调，明度取 0.75（保证适中亮度），
+    // 返回不透明 0xFF 颜色作为配色种子。
+    fun rebuild(h: Float, s: Float): Color {
+        val v = value.coerceIn(0.45f, 0.9f)
+        return Color(android.graphics.Color.HSVToColor(floatArrayOf(h, s, v)))
+    }
+
+    val hueSliderColors = SliderDefaults.colors(
+        thumbColor = seed,
+        activeTrackColor = Color.Transparent,
+        inactiveTrackColor = Color.Transparent
+    )
+
+    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+        Text(
+            text = "主色调",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        // 色相轨道：彩虹渐变滑杆
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(24.dp)
+                .clip(CircleShape)
+                .background(
+                    Brush.horizontalGradient(
+                        (0..360 step 36).map { deg ->
+                            Color(
+                                android.graphics.Color.HSVToColor(
+                                    floatArrayOf(deg.toFloat(), 0.85f, 1f)
+                                )
+                            )
+                        }
+                    )
+                )
+        ) {
+            Slider(
+                value = hue,
+                onValueChange = { newHue ->
+                    onSeedChange(rebuild(newHue, saturation))
+                },
+                colors = hueSliderColors.copy(
+                    thumbColor = Color(
+                        android.graphics.Color.HSVToColor(
+                            floatArrayOf(hue, saturation, value)
+                        )
+                    )
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.Center)
+            )
+        }
+
+        Spacer(Modifier.height(4.dp))
+
+        Text(
+            text = "饱和度",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Slider(
+            value = saturation,
+            onValueChange = { newSaturation ->
+                onSeedChange(rebuild(hue, newSaturation))
+            },
             modifier = Modifier.fillMaxWidth()
         )
     }

@@ -413,6 +413,7 @@ fun LiquidUITheme(
     palette: PaletteId = PaletteId.Aurora,
     customSeed: Color = Color(0xFF3E8FE0),
     customShade: Float = 0.5f,
+    useDynamicColors: Boolean = false,
     chrome: AppChrome = AppChrome(),
     content: @Composable () -> Unit
 ) {
@@ -422,8 +423,13 @@ fun LiquidUITheme(
         ThemeMode.Dark -> true
     }
 
+    // 动态取色只影响配色方案，与视觉风格解耦：
+    // - useDynamicColors 为 true（莫奈取色）或显式选了 MD3 视觉风格时使用
+    //   系统动态色作为主色系；
+    // - 玻璃渲染由 chrome.visualMode（即下方 visualMode）决定，不受影响。
     val colorScheme = when {
-        visualMode == VisualMode.Md3 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+        (visualMode == VisualMode.Md3 || useDynamicColors) &&
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }

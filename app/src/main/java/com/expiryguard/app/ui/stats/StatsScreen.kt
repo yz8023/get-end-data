@@ -40,7 +40,6 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -64,32 +63,6 @@ private val TakeDownColor = Color(0xFFB91C1C)
 
 /** 已处理标记颜色（深绿） */
 private val ProcessedColor = Color(0xFF15803D)
-
-/**
- * 获取产品状态对应的颜色
- */
-private fun getStatusColor(status: ProductStatus): Color {
-    return when (status) {
-        is ProductStatus.Safe -> Green500
-        is ProductStatus.ExpiringSoon -> Yellow500
-        is ProductStatus.Returnable -> Blue500
-        is ProductStatus.TakeDown -> Red500
-        is ProductStatus.Expired -> Red500
-    }
-}
-
-/**
- * 获取产品状态对应的中文标签
- */
-private fun getStatusLabel(status: ProductStatus): String {
-    return when (status) {
-        is ProductStatus.Safe -> "安全"
-        is ProductStatus.ExpiringSoon -> "即将到期"
-        is ProductStatus.Returnable -> "可退货"
-        is ProductStatus.TakeDown -> "可下架"
-        is ProductStatus.Expired -> "已过期"
-    }
-}
 
 /**
  * 统计页面，展示产品状态统计数据和图表
@@ -245,25 +218,6 @@ fun StatsScreen(
                         )
                         BarChart(
                             products = uiState.products
-                        )
-                    }
-
-                    // 清单详情列表
-                    item {
-                        Text(
-                            text = "清单详情",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                        )
-                    }
-
-                    items(uiState.products) { product ->
-                        ProductDetailRow(
-                            product = product,
-                            status = ExpiryRuleEngine.calculateStatus(
-                                product.shelfLifeDays, product.expiryDate
-                            )
                         )
                     }
 
@@ -652,113 +606,3 @@ private fun BarChart(
     }
 }
 
-/**
- * 清单详情行，毛玻璃风格（增强版）
- *
- * 使用 GlassCard 带 statusColor 参数，显示状态色边框光晕
- * 可退货清单额外显示"剩余退货时间"和"距离到期还有"
- */
-@Composable
-private fun ProductDetailRow(
-    product: ProductEntity,
-    status: ProductStatus
-) {
-    // 已完成清单显示已下架/已处理标记
-    val isCompleted = product.isCompleted
-    val completedColor = when {
-        isCompleted && product.completedType == ProductEntity.COMPLETED_TYPE_TAKE_DOWN -> TakeDownColor
-        isCompleted -> ProcessedColor
-        else -> getStatusColor(status)
-    }
-    val statusColor = completedColor
-
-    GlassCard(
-        shape = RoundedCornerShape(12.dp),
-        elevation = 1.dp,
-        statusColor = statusColor
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // 状态颜色标记（带发光效果）
-            Box(
-                modifier = Modifier
-                    .size(10.dp)
-                    .clip(CircleShape)
-                    .background(statusColor)
-            )
-
-            Spacer(modifier = Modifier.width(10.dp))
-
-            // 清单名称
-            Text(
-                text = product.name,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.weight(1f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // 到期日期
-            Text(
-                text = DateUtils.formatDate(product.expiryDate),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-            )
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // 状态标签（已完成显示已下架/已处理，可退货显示退货时间信息）
-            when {
-                isCompleted -> {
-                    val label = if (product.completedType == ProductEntity.COMPLETED_TYPE_TAKE_DOWN) {
-                        "已下架"
-                    } else {
-                        "已处理"
-                    }
-                    Text(
-                        text = label,
-                        fontSize = 12.sp,
-                        color = statusColor,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-                status is ProductStatus.Returnable -> {
-                    val returnDeadlineDays = (status.remainingDays - status.threshold).coerceAtLeast(0)
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(
-                            text = "可退货",
-                            fontSize = 12.sp,
-                            color = statusColor,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Text(
-                            text = "剩余退货${returnDeadlineDays}天",
-                            fontSize = 10.sp,
-                            color = statusColor.copy(alpha = 0.7f)
-                        )
-                        Text(
-                            text = "到期还有${status.remainingDays}天",
-                            fontSize = 10.sp,
-                            color = statusColor.copy(alpha = 0.7f)
-                        )
-                    }
-                }
-                else -> {
-                    Text(
-                        text = getStatusLabel(status),
-                        fontSize = 12.sp,
-                        color = statusColor,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-        }
-    }
-}

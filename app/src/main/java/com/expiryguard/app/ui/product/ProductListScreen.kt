@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -75,6 +76,8 @@ import com.expiryguard.app.ui.liquid.components.GlassTextField
 import com.expiryguard.app.ui.liquid.components.PrimaryButton
 import com.expiryguard.app.ui.liquid.components.SecondaryButton
 import com.expiryguard.app.ui.liquid.components.SegmentedTabs
+import com.expiryguard.app.ui.liquid.theme.LocalAppChrome
+import com.expiryguard.app.ui.liquid.theme.VisualMode
 import com.expiryguard.app.ui.theme.Blue500
 import com.expiryguard.app.ui.theme.Gray500
 import com.expiryguard.app.ui.theme.Green500
@@ -177,11 +180,23 @@ fun ProductListScreen(
         },
         floatingActionButton = {
             // 添加清单 FAB
+            // 玻璃模式下内容延伸到底部、悬浮胶囊横跨底栏，FAB 需抬升到胶囊之上
+            // 避免被系统手势条 / 胶囊底部遮挡；普通 / MD3 模式由外层 bottomBar 占位。
+            val glassFabOffset = if (
+                LocalAppChrome.current.visualMode == VisualMode.Glass
+            ) {
+                Modifier
+                    .navigationBarsPadding()
+                    .padding(bottom = 84.dp)
+            } else {
+                Modifier.padding(bottom = 16.dp)
+            }
             GlassIconButton(
                 icon = Icons.Default.Add,
                 contentDescription = "添加清单",
                 onClick = onNavigateToAddProduct,
-                tint = MaterialTheme.colorScheme.primary
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = glassFabOffset
             )
         },
         containerColor = Color.Transparent

@@ -114,3 +114,13 @@ Entries discovered by the Agent during task execution should follow this format:
   - 恢复失败根因：Kotlin 对 `Gson.fromJson(data, BackupData::class.java) ?: throw` 的泛型 T 推断成 java.lang.Void，字节码 fromJson 后紧跟 `checkcast java/lang/Void`，任何非 null 返回都抛 ClassCastException，且该异常是 RuntimeException 不被 try 的 JsonSyntaxException catch 捕获；修复：先 `val parsed: BackupData = gson.fromJson(...)` 显式声明局部变量类型，再判 null
   - LiquidUI 玻璃底栏正确接线范式（对齐参考版 AppRoot）：Scaffold 的 bottomBar 在 glassEnabled 时仅渲染胶囊（不放高度占位）；NavHost bottom padding 设为 0，内容全屏延伸到底；悬浮胶囊 align(BottomCenter).padding(bottom=14.dp) 且不用 navigationBarsPadding；各 Tab 页滚动容器自留 contentPadding bottom=108.dp 防胶囊遮挡
   - 若保留 Scaffold bottomBar 高度占位，玻璃胶囊只采样到空白背景（浅色 AuroraLight 含纯白 0xFFFFFFFF），底栏下方呈现白色底层
+
+[Project Knowledge Summary]
+- Date: 2026-09-17
+- Context: Discovered by Agent while implementing 需求3（莫奈取色不应改变整站视觉风格）
+- Category: Troubleshooting & Debugging
+- Instructions:
+  - 莫奈取色与视觉风格必须解耦：ExpiryGuardTheme 桥接层勿把 monetEnabled 硬映射成 VisualMode.Md3（会把整站玻璃换成纯 Material）；正确做法是 LiquidUITheme 新增 useDynamicColors 参数，colorScheme 判定 `(visualMode == VisualMode.Md3 || useDynamicColors) && SDK >= S` 时用动态色，玻璃渲染仍由 chrome.visualMode 决定；bridge 层传 useDynamicColors = monetEnabled 且 visualMode 恒为 settings.visualMode
+  - 统计页「清单详情」列表（ProductDetailRow + 它独占的 getStatusColor/getStatusLabel 辅助函数）删除后需同步清理未用 import（如 TextOverflow），避免 dead code
+  - 首页「已处理」过滤必须按时间当天过滤：processedCompleted 加 `DateUtils.isToday(it.completedAt ?: 0L)` 条件，仅下架（takeDownCompleted）不受限
+  - SettingsScreen 无极调色用到 `HSVToColor`/`colorToHSV`，需补 `import androidx.compose.ui.graphics.toArgb`；BackupRestoreScreen 新增模式选择器需补 `androidx.compose.foundation.border` 与 `BorderStroke` import
