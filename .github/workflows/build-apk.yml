@@ -51,7 +51,7 @@ jobs:
       # 附带源码压缩包（排除构建产物与敏感信息）
       - name: Package source
         run: |
-          zip -rq "dist/ExpiryGuard_${VERSION}_源码.zip" . \
+          zip -rq "dist/ExpiryGuard_${VERSION}_source.zip" . \
             -x ".git/*" ".gradle/*" "app/build/*" "ExpiryGuard/app/build/*" \
             ".idea/*" "*.iml" "local.properties" "*.keystore" "*.jks" \
             "keystore.properties" "*.log" "dist/*"
@@ -80,8 +80,8 @@ jobs:
 
             ## 下载
             - ExpiryGuard_${{ env.VERSION }}.apk（调试版，可直接安装）
-            - ExpiryGuard_${{ env.VERSION }}_源码.zip（完整源码）
+            - ExpiryGuard_${{ env.VERSION }}_source.zip（完整源码）
           files: |
             dist/ExpiryGuard_${{ env.VERSION }}.apk
-            dist/ExpiryGuard_${{ env.VERSION }}_源码.zip
+            dist/ExpiryGuard_${{ env.VERSION }}_source.zip
           fail_on_unmatched_files: true
