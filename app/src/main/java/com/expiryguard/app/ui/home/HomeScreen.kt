@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -34,6 +35,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SnackbarData
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -41,6 +43,7 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
@@ -79,6 +82,7 @@ import com.expiryguard.app.ui.components.StatusBadgeCompleted
 import com.expiryguard.app.ui.liquid.components.GlassIconButton
 import com.expiryguard.app.ui.liquid.components.GlassTextField
 import com.expiryguard.app.ui.liquid.components.PrimaryButton
+import com.expiryguard.app.ui.liquid.components.liquidGlass
 import com.expiryguard.app.ui.theme.Blue500
 import com.expiryguard.app.ui.theme.Gray500
 import com.expiryguard.app.ui.theme.Green500
@@ -236,10 +240,14 @@ fun HomeScreen(
             }
         }
 
-        // Snackbar 提示层，覆盖在界面顶部，不干扰列表布局
+        // Snackbar 提示层：玻璃主题 + 主题色，置顶居中，不干扰列表布局
         SnackbarHost(
             hostState = snackbarHostState,
-            modifier = Modifier.align(Alignment.BottomCenter)
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .padding(top = 10.dp, start = 24.dp, end = 24.dp),
+            snackbar = { data -> GlassCompletionSnackbar(data) }
         )
     }
 
@@ -275,6 +283,56 @@ fun HomeScreen(
                 },
                 onDismiss = { selectedProduct = null }
             )
+        }
+    }
+}
+
+/**
+ * 玻璃主题的标记提示浮层：主题色玻璃底 + 白字 + 「撤销」入口
+ */
+@Composable
+private fun GlassCompletionSnackbar(data: SnackbarData) {
+    val scheme = MaterialTheme.colorScheme
+    val visuals = data.visuals
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            modifier = Modifier
+                .liquidGlass(
+                    shape = RoundedCornerShape(18.dp),
+                    tint = scheme.primary,
+                    elevation = 2.dp,
+                    borderAlpha = 0.35f
+                )
+                .padding(start = 16.dp, end = 6.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Filled.CheckCircle,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = visuals.message,
+                color = Color.White,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                maxLines = 2
+            )
+            val actionLabel = visuals.actionLabel
+            if (actionLabel != null) {
+                TextButton(onClick = { data.performAction() }) {
+                    Text(
+                        text = actionLabel,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
         }
     }
 }

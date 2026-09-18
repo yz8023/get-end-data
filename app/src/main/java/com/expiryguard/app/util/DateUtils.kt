@@ -106,58 +106,45 @@ object DateUtils {
         val text = input.trim()
         if (text.isEmpty()) return null
 
-        // 完整格式：年（2~4位）+ 月 + 日（可选，省略时按 1 号）
-        val fullRegex = Regex("""(\d{2,4})\D{1,4}?(\d{1,2})(?:\D{1,4}?(\d{1,2}))?\D*$""")
-        val fullMatch = fullRegex.find(text)
-        if (fullMatch != null) {
-            val yearRaw = fullMatch.groupValues[1]
-            val monthRaw = fullMatch.groupValues[2]
-            val dayRaw = fullMatch.groupValues[3]
+        // 提取所有数字段，如 "2019年1月1日" → [2019, 1, 1]
+        val numbers = Regex("""\d+""").findAll(text).map { it.value.toInt() }.toList()
+        if (numbers.isEmpty()) return null
 
-            val year = if (yearRaw.length == 2) 2000 + yearRaw.toInt() else yearRaw.toInt()
-            val month = monthRaw.toInt()
-            val day = if (dayRaw.isEmpty()) 1 else dayRaw.toInt()
-
-            if (month !in 1..12) return null
-            if (day !in 1..31) return null
-
-            return try {
-                LocalDate.of(year, month, day)
-            } catch (_: Exception) {
-                null
+        return when {
+            // 完整格式：年（2~4位）+ 月 + 日（省略日时按 1 号）
+            numbers.size >= 3 -> {
+                val yearRaw = numbers[0]
+                val year = if (yearRaw < 100) 2000 + yearRaw else yearRaw
+                buildDate(year, numbers[1], numbers[2])
             }
-        }
-
-        // 简化格式：只选几月几日，年份默认今年
-        val mdRegex = Regex("""(\d{1,2})\D{1,4}?(\d{1,2})\D*$""")
-        val mdMatch = mdRegex.find(text)
-        if (mdMatch != null) {
-            val month = mdMatch.groupValues[1].toInt()
-            val day = mdMatch.groupValues[2].toInt()
-            if (month !in 1..12 || day !in 1..31) return null
-            val year = LocalDate.now().year
-            return try {
-                LocalDate.of(year, month, day)
-            } catch (_: Exception) {
-                null
+            // 两段：优先「月.日」（年份默认今年），首位不是合法月份才按「年.月」
+            // 例：10.12 → 10月12日；2019.01 / 19.01 → 年.月
+            numbers.size == 2 -> {
+                val first = numbers[0]
+                val second = numbers[1]
+                if (first in 1..12 && second in 1..31) {
+                    buildDate(LocalDate.now().year, first, second)
+                } else {
+                    val year = if (first < 100) 2000 + first else first
+                    buildDate(year, second, 1)
+                }
             }
-        }
-
-        // 仅月份：如 3月 / 3，按当月 1 号、默认今年
-        val monthRegex = Regex("""(\d{1,2})\D*$""")
-        val monthMatch = monthRegex.find(text)
-        if (monthMatch != null) {
-            val month = monthMatch.groupValues[1].toInt()
-            if (month !in 1..12) return null
-            val year = LocalDate.now().year
-            return try {
-                LocalDate.of(year, month, 1)
-            } catch (_: Exception) {
-                null
+            // 仅月份：如 3月 / 3，按当月 1 号、默认今年
+            numbers.size == 1 -> {
+                val month = numbers[0]
+                if (month !in 1..12) null else buildDate(LocalDate.now().year, month, 1)
             }
+            else -> null
         }
+    }
 
-        return null
+    private fun buildDate(year: Int, month: Int, day: Int): LocalDate? {
+        if (month !in 1..12 || day !in 1..31) return null
+        return try {
+            LocalDate.of(year, month, day)
+        } catch (_: Exception) {
+            null
+        }
     }
 
     /**

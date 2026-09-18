@@ -145,3 +145,12 @@ Entries discovered by the Agent during task execution should follow this format:
   - 常驻无限动画必须挂 reducedMotion 开关：Modifiers.kt idleBreathing 开头 `if (LocalAppChrome.current.reducedMotion) return this`；StatusBadge.kt 可下架闪烁在 reducedMotion 时 alpha 恒 1 不建 InfiniteTransition（业务组件可改，Modifiers.kt 属参考组件但在性能优化需求下做了最小改动）
   - 设置页 GlassStyleCard 已有「减少动效」CompactSwitch（AppIcons.Speed + settings.reducedMotion），与动效阻尼滑块同区；SettingsScreen 需补 AppIcons/Icon/width import
   - 首页 LazyColumn 懒加载、AsyncImage .size(128) 已够，无需额外改图；blur(16f.dp) 等视觉参数保持参考版不变
+
+[Project Knowledge Summary]
+- Date: 2026-09-18
+- Context: Discovered by Agent while fixing v1.1.6 用户反馈：日期「10.12」解析错误 + 首页长按标记提示风格
+- Category: Troubleshooting & Debugging
+- Instructions:
+  - DateUtils.parseDate 根因：旧 fullRegex 优先命中，把「10.12」两段数字解析成 年.月（year=10→2010, month=12）。修复：改提取全部数字段按段数分流——≥3 段按 年-月-日（2 位年份补 20xx）；2 段优先「月.日」（首位 1..12 且次位 1..31 按今年月日，否则按 年.月）；1 段按月份。Kotlin 不支持 `when(x){ >=3 -> }` 比较条件，须用无主语 `when{ x>=3 -> }`
+  - 首页长按提示玻璃化：SnackbarHost 置顶居中（align(TopCenter)+statusBarsPadding+顶部 padding），自定义 snackbar slot 用 liquidGlass(RoundedCornerShape(18.dp), tint=scheme.primary, elevation=2.dp, borderAlpha=0.35f)+白字+「撤销」TextButton(data.performAction())；SnackbarVisuals.actionLabel 是接口 open getter 属性，判空后引用必须存局部 val 否则 smart cast 报错
+  - 撤销逻辑不变：showCompletionSnackbar 以 showSnackbar 返回 ActionPerformed 才调 onUndo；自定义 snackbar 调 data.performAction() 即可让 await 侧恢复 ActionPerformed
