@@ -1,10 +1,5 @@
 package com.expiryguard.app.ui.liquid.components
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -15,7 +10,9 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,6 +39,7 @@ import com.expiryguard.app.ui.liquid.theme.VisualMode
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlinx.coroutines.delay
 
 /**
  * The decorative layer the glass refracts.
@@ -58,13 +56,22 @@ fun AuroraBackground(
     content: @Composable BoxScope.() -> Unit
 ) {
     val dark = isSystemInDarkTheme()
-    val transition = rememberInfiniteTransition(label = "aurora")
-    val phase by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = (2 * PI).toFloat(),
-        animationSpec = infiniteRepeatable(tween(28_000, easing = LinearEasing)),
-        label = "auroraPhase"
-    )
+    // 性能优化：极光相位以 ~8fps 步进驱动，而不是每帧 60fps 重绘。
+    // 极光本身是一个 28s 的慢循环，8fps 与 60fps 视觉几乎无差别，
+    // 但大幅降低 backdrop 层重录与所有玻璃面板的重复采样/模糊开销。
+    // 「减少动效」开启时相位保持 0，背景完全静止。
+    val reduced = LocalAppChrome.current.reducedMotion
+    val phase = remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(reduced) {
+        if (reduced) return@LaunchedEffect
+        val twoPi = (2 * PI).toFloat()
+        // 28s 完整循环 × 8fps = 224 步，每步 2π/224。
+        val step = twoPi / 224f
+        while (true) {
+            delay(125)
+            phase.floatValue = (phase.floatValue + step) % twoPi
+        }
+    }
     val palette = if (dark) AuroraDark else AuroraLight
     val base = MaterialTheme.colorScheme.background
 
@@ -76,7 +83,7 @@ fun AuroraBackground(
         androidx.compose.foundation.Canvas(
             modifier = Modifier.matchParentSize()
         ) {
-            drawAurora(phase, palette)
+            drawAurora(phase.floatValue, palette)
         }
         content()
     }

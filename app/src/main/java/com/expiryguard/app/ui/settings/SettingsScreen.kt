@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -30,6 +31,7 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -66,6 +68,7 @@ import com.expiryguard.app.ui.liquid.components.SegmentedTabs
 import com.expiryguard.app.ui.liquid.screens.AppSettingsState
 import com.expiryguard.app.ui.liquid.screens.LocalAppSettings
 import com.expiryguard.app.ui.liquid.screens.rememberAppSettingsState
+import com.expiryguard.app.ui.liquid.theme.AppIcons
 import com.expiryguard.app.ui.liquid.theme.PaletteId
 import com.expiryguard.app.ui.liquid.theme.VisualMode
 import com.expiryguard.app.ui.liquid.theme.palettePrimaryLight
@@ -555,6 +558,38 @@ private fun GlassStyleCard(settings: AppSettingsState) {
                 valueRange = 0.1f..0.9f,
                 onValueChangeFinished = settings::updateMotionDamping
             )
+
+            Spacer(Modifier.height(8.dp))
+
+            // 减少动效：关闭极光/呼吸等常驻无限动画，显著降低渲染负载。
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = AppIcons.Speed,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "减少动效",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "关闭背景极光与呼吸动画，降低卡顿",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                CompactSwitch(
+                    checked = settings.reducedMotion,
+                    onCheckedChange = settings::updateReducedMotion
+                )
+            }
         }
     }
 }

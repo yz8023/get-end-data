@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
+import com.expiryguard.app.ui.liquid.theme.LocalAppChrome
 import kotlinx.coroutines.delay
 import kotlin.math.PI
 import kotlin.math.sin
@@ -91,6 +92,8 @@ fun Modifier.idleBreathing(
     amplitudeX: Float = 0.012f,
     amplitudeY: Float = 0.020f
 ): Modifier {
+    // 「减少动效」开启时保持静止，避免常驻无限动画消耗渲染资源。
+    if (LocalAppChrome.current.reducedMotion) return this
     val transition = rememberInfiniteTransition(label = "idle")
     val phase by transition.animateFloat(
         initialValue = 0f,

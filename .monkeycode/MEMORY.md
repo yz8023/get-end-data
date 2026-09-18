@@ -134,3 +134,14 @@ Entries discovered by the Agent during task execution should follow this format:
   - 「莫奈配色」=莫奈系列预设调色板（印象派睡莲柔和色调），不是系统动态取色/Material You；实现为 PaletteId.Monet + PaletteSeeds 条目（MonetLight/DarkPrimary 等常量在 ui/liquid/theme/Color.kt）即可，勿接入 dynamicColorScheme
   - 移除动态取色链路要同步清理四处：LiquidUITheme 的 useDynamicColors 参数与 colorScheme 判定、ExpiryGuardTheme 的 monetEnabled 参数、MainActivity 的 KEY_MONET/monetFlow、SettingsViewModel 的 KEY_MONET_ENABLED/isMonetEnabled/toggleMonet 与 SettingsScreen 的 switch_monet 卡片
   - GitHub Release 源码包文件名必须用 ASCII（`_source.zip`），softprops/action-gh-release@v2 上传中文名（`_源码.zip`）会报 `Error creating asset temp dir` 导致整个 CI 步骤失败；workflow 里 Package source 步骤的 zip 名与 Create GitHub Release 的 files/body 引用都要同步改
+
+[Project Knowledge Summary]
+- Date: 2026-09-18
+- Context: Discovered by Agent while optimizing ExpiryGuard 卡顿问题（v1.1.5 性能优化）
+- Category: Troubleshooting & Debugging
+- Instructions:
+  - 卡顿主因：AuroraBackground 用 rememberInfiniteTransition 每帧（60fps）驱动全屏 Canvas + backdrop 层，极光每帧变化→auroraBackdrop 层每帧重录→所有玻璃面板每帧重复采样/模糊，开销被放大数倍。修复：Glass.kt 极光相位改为 LaunchedEffect 循环以 ~8fps（delay(125)）步进 mutableFloatStateOf，28s 完整循环 224 步，视觉几乎无差但 backdrop 重录/玻璃重采样成本降 ~7.5x
+  - AuroraBackground 的「减少动效」（chrome.reducedMotion）开启时相位保持 0，背景完全静止，零重绘
+  - 常驻无限动画必须挂 reducedMotion 开关：Modifiers.kt idleBreathing 开头 `if (LocalAppChrome.current.reducedMotion) return this`；StatusBadge.kt 可下架闪烁在 reducedMotion 时 alpha 恒 1 不建 InfiniteTransition（业务组件可改，Modifiers.kt 属参考组件但在性能优化需求下做了最小改动）
+  - 设置页 GlassStyleCard 已有「减少动效」CompactSwitch（AppIcons.Speed + settings.reducedMotion），与动效阻尼滑块同区；SettingsScreen 需补 AppIcons/Icon/width import
+  - 首页 LazyColumn 懒加载、AsyncImage .size(128) 已够，无需额外改图；blur(16f.dp) 等视觉参数保持参考版不变

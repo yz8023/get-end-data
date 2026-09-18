@@ -29,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.expiryguard.app.domain.model.ProductStatus
+import com.expiryguard.app.ui.liquid.theme.LocalAppChrome
 import com.expiryguard.app.ui.theme.Blue500
 import com.expiryguard.app.ui.theme.Green500
 import com.expiryguard.app.ui.theme.Red500
@@ -76,17 +77,23 @@ fun StatusBadge(status: ProductStatus) {
         }
 
         is ProductStatus.TakeDown -> {
-            // 红色闪烁标签：可下架
-            val infiniteTransition = rememberInfiniteTransition(label = "take_down_blink")
-            val alpha by infiniteTransition.animateFloat(
-                initialValue = 1f,
-                targetValue = 0.4f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(durationMillis = 700, easing = LinearEasing),
-                    repeatMode = RepeatMode.Reverse
-                ),
-                label = "alpha"
-            )
+            // 红色闪烁标签：可下架。「减少动效」开启时保持常亮，避免逐卡片无限动画。
+            val reduced = LocalAppChrome.current.reducedMotion
+            val alpha = if (reduced) {
+                1f
+            } else {
+                val infiniteTransition = rememberInfiniteTransition(label = "take_down_blink")
+                val animated by infiniteTransition.animateFloat(
+                    initialValue = 1f,
+                    targetValue = 0.4f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(durationMillis = 700, easing = LinearEasing),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "alpha"
+                )
+                animated
+            }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
