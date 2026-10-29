@@ -5,10 +5,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.expiryguard.app.data.db.entity.CategoryEntity
 import com.expiryguard.app.data.db.entity.ProductEntity
+import com.expiryguard.app.data.repository.ExpiryPolicyRepository
 import com.expiryguard.app.data.repository.ProductRepository
 import com.expiryguard.app.domain.engine.ExpiryRuleEngine
+import com.expiryguard.app.util.LocalDateTicker
 import com.expiryguard.app.domain.model.ProductStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -38,7 +41,9 @@ data class ProductDetailUiState(
 @HiltViewModel
 class ProductDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val repository: ProductRepository
+    private val repository: ProductRepository,
+    private val policyRepository: ExpiryPolicyRepository,
+    private val dateTicker: LocalDateTicker
 ) : ViewModel() {
 
     /** 从导航参数中获取清单 ID */
@@ -60,32 +65,35 @@ class ProductDetailViewModel @Inject constructor(
      */
     private fun loadProductDetail() {
         viewModelScope.launch {
-            repository.getProductById(productId).collect { product ->
-                if (product != null) {
-                    // 计算清单状态
-                    val status = ExpiryRuleEngine.calculateStatus(
-                        product.shelfLifeDays,
-                        product.expiryDate
-                    )
-
-                    // 加载分类信息
-                    var category: CategoryEntity? = null
-                    if (product.categoryId != null) {
-                        repository.getAllCategories().collect { categories ->
-                            category = categories.find { it.id == product.categoryId }
-                        }
-                    }
-
-                    _uiState.value = ProductDetailUiState(
+            combine(
+                repository.getProductById(productId),
+                repository.getAllCategories(),
+                policyRepository.policy,
+                dateTicker.observeToday()
+            ) { product, categories, policy, today ->
+                if (product == null) {
+                    ProductDetailUiState(isLoading = false)
+                } else {
+                    ProductDetailUiState(
                         product = product,
-                        category = category,
-                        status = status,
+                        category = categories.find { it.id == product.categoryId },
+                        status = ExpiryRuleEngine.calculateStatus(
+                            product.shelfLifeDays,
+                            product.expiryDate,
+                            policy,
+                            today
+                        ),
                         isLoading = false
                     )
-                } else {
-                    _uiState.update { it.copy(isLoading = false) }
                 }
             }
+                .flowOn(Dispatchers.Default)
+                .collect { newState ->
+                    // 删除导航标记不能被随后的数据库 Flow 重建状态覆盖。
+                    _uiState.update { current ->
+                        newState.copy(isDeleted = current.isDeleted)
+                    }
+                }
         }
     }
 

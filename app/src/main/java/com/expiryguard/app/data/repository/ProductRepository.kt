@@ -1,5 +1,11 @@
 package com.expiryguard.app.data.repository
 
+import android.content.Context
+import androidx.room.withTransaction
+import com.expiryguard.app.util.ImageUtils
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
+import com.expiryguard.app.data.db.AppDatabase
 import com.expiryguard.app.data.db.dao.CategoryCount
 import com.expiryguard.app.data.db.dao.CategoryDao
 import com.expiryguard.app.data.db.dao.ExpiryCount
@@ -20,10 +26,17 @@ import java.util.concurrent.TimeUnit
  * @param shelfLifeGroupDao 保质期分组数据访问对象
  */
 class ProductRepository(
+    @ApplicationContext private val context: Context,
+    private val database: AppDatabase,
     private val productDao: ProductDao,
     private val categoryDao: CategoryDao,
     private val shelfLifeGroupDao: ShelfLifeGroupDao
 ) {
+
+    /** 在单一 Room 事务中执行恢复等多表操作，异常时全部回滚。 */
+    suspend fun <T> inTransaction(block: suspend () -> T): T {
+        return database.withTransaction { block() }
+    }
 
     // ==================== 产品操作 ====================
 
@@ -102,6 +115,8 @@ class ProductRepository(
         return try {
             val id = productDao.insert(product)
             Result.success(id)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -116,6 +131,8 @@ class ProductRepository(
         return try {
             productDao.insertAll(products)
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -126,8 +143,14 @@ class ProductRepository(
      */
     suspend fun update(product: ProductEntity): Result<Unit> {
         return try {
+            val oldPath = productDao.getPhotoPath(product.id)
             productDao.update(product)
+            if (!oldPath.isNullOrBlank() && oldPath != product.photoPath) {
+                deleteImageIfUnreferenced(oldPath)
+            }
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -140,6 +163,8 @@ class ProductRepository(
         return try {
             productDao.softDelete(ids)
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -152,6 +177,8 @@ class ProductRepository(
         return try {
             productDao.restore(ids)
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -164,6 +191,8 @@ class ProductRepository(
         return try {
             productDao.permanentDeleteAllActive()
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -173,9 +202,14 @@ class ProductRepository(
      * 永久删除指定 ID 的产品，返回 Result 包装结果
      */
     suspend fun permanentDelete(ids: List<Long>): Result<Unit> {
+        if (ids.isEmpty()) return Result.success(Unit)
         return try {
+            val paths = productDao.getPhotoPathsForIds(ids).distinct()
             productDao.permanentDelete(ids)
+            paths.forEach { deleteImageIfUnreferenced(it) }
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -188,6 +222,8 @@ class ProductRepository(
         return try {
             productDao.updateNotes(ids, notes)
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -200,6 +236,8 @@ class ProductRepository(
         return try {
             productDao.updateCategory(ids, categoryId)
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -213,6 +251,8 @@ class ProductRepository(
         return try {
             productDao.updateCompletionStatus(id, isCompleted, completedType)
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -234,6 +274,8 @@ class ProductRepository(
         return try {
             val id = categoryDao.insert(category)
             Result.success(id)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -246,6 +288,8 @@ class ProductRepository(
         return try {
             categoryDao.insertAll(categories)
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -258,6 +302,8 @@ class ProductRepository(
         return try {
             categoryDao.deleteAll()
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -268,10 +314,21 @@ class ProductRepository(
      */
     suspend fun deleteCategory(category: CategoryEntity): Result<Unit> {
         return try {
-            categoryDao.delete(category)
+            database.withTransaction {
+                productDao.clearCategory(category.id)
+                categoryDao.delete(category)
+            }
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    private suspend fun deleteImageIfUnreferenced(path: String) {
+        if (productDao.countPhotoReferences(path) == 0) {
+            ImageUtils.deleteImage(context, path)
         }
     }
 
@@ -298,6 +355,8 @@ class ProductRepository(
         return try {
             val id = shelfLifeGroupDao.insert(group)
             Result.success(id)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -310,6 +369,8 @@ class ProductRepository(
         return try {
             shelfLifeGroupDao.update(group)
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -322,6 +383,8 @@ class ProductRepository(
         return try {
             shelfLifeGroupDao.insertAll(groups)
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -334,6 +397,8 @@ class ProductRepository(
         return try {
             shelfLifeGroupDao.deleteAll()
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -346,6 +411,8 @@ class ProductRepository(
         return try {
             shelfLifeGroupDao.delete(group)
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }

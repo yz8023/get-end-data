@@ -16,12 +16,27 @@ android {
         applicationId = "com.expiryguard.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 14
-        versionName = "1.1.6"
+        versionCode = 15
+        versionName = "1.1.7"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        if (!System.getenv("EXPIRYGUARD_KEYSTORE").isNullOrBlank()) {
+            create("release") {
+                storeFile = file(System.getenv("EXPIRYGUARD_KEYSTORE"))
+                storePassword = System.getenv("EXPIRYGUARD_STORE_PASSWORD")
+                keyAlias = System.getenv("EXPIRYGUARD_KEY_ALIAS")
+                keyPassword = System.getenv("EXPIRYGUARD_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         release {
+            if (!System.getenv("EXPIRYGUARD_KEYSTORE").isNullOrBlank()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -39,6 +54,10 @@ android {
         compose = true
     }
 
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -50,6 +69,10 @@ kotlin {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_17)
     }
+}
+
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 dependencies {
@@ -93,6 +116,7 @@ dependencies {
 
     // Coil (图片加载)
     implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation("androidx.exifinterface:exifinterface:1.4.1")
 
     // Vico (图表)
     implementation("com.patrykandpatrick.vico:compose:2.0.0-beta.2")
@@ -113,4 +137,15 @@ dependencies {
 
     // Core
     implementation("androidx.core:core-ktx:1.13.1")
+
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("androidx.test:core:1.6.1")
+    testImplementation("androidx.room:room-testing:2.8.5")
+    testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation("androidx.work:work-testing:2.9.1")
+
+    androidTestImplementation("androidx.test:core:1.6.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.room:room-testing:2.8.5")
 }

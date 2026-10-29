@@ -79,6 +79,7 @@ import com.expiryguard.app.ui.components.GlassCard
 import com.expiryguard.app.ui.components.GradientBackground
 import com.expiryguard.app.ui.components.StatusBadge
 import com.expiryguard.app.ui.components.StatusBadgeCompleted
+import com.expiryguard.app.ui.rememberExpiryStatus
 import com.expiryguard.app.ui.liquid.components.GlassIconButton
 import com.expiryguard.app.ui.liquid.components.GlassTextField
 import com.expiryguard.app.ui.liquid.components.PrimaryButton
@@ -106,14 +107,6 @@ private fun statusToColor(status: ProductStatus): Color {
         is ProductStatus.TakeDown -> Red500
         is ProductStatus.Expired -> Red700
     }
-}
-
-/**
- * 根据 ProductEntity 计算状态颜色
- */
-private fun productStatusColor(product: ProductEntity): Color {
-    val status = ExpiryRuleEngine.calculateStatus(product.shelfLifeDays, product.expiryDate)
-    return statusToColor(status)
 }
 
 /**
@@ -524,7 +517,7 @@ private fun SearchBar(
 private const val MAX_COMPLETED_ITEMS_PER_GROUP = 20
 
 /**
- * 今日待办区域 —— 显示今天到期 + 还剩1天的预警清单
+ * 待办区域 —— 显示今日到期、可下架/退货/过期及提醒窗口内的预警清单
  *
  * 支持左右滑动切换完成状态（左右方向均可标记/取消标记）。
  * 已处理区域按标记类型拆分为「已下架」与「已处理」两组，便于快速查看。
@@ -540,7 +533,7 @@ private fun LazyListScope.todayTasksSection(
     onTaskClick: (ProductEntity) -> Unit,
     onTaskLongPress: (ProductEntity) -> Unit
 ) {
-    // 合并今日到期 + 预警（还剩1天），按到期日期排序
+    // 合并今日待办 + 提醒窗口内的预警，按到期日期排序
     val todayTasks = (todayExpiry + warning)
         .distinctBy { it.id }
         .sortedBy { it.expiryDate }
@@ -552,7 +545,7 @@ private fun LazyListScope.todayTasksSection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "今日待办",
+                    text = "待办与预警",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.weight(1f)
@@ -584,7 +577,7 @@ private fun LazyListScope.todayTasksSection(
                 elevation = 2.dp
             ) {
                 Text(
-                    text = "今天没有到期清单",
+                        text = "暂无待办或预警清单",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
                     modifier = Modifier.padding(24.dp)
@@ -701,7 +694,7 @@ private fun TaskCard(
     onLongPress: () -> Unit,
     onClick: () -> Unit
 ) {
-    val productStatus = remember { ExpiryRuleEngine.calculateStatus(product.shelfLifeDays, product.expiryDate) }
+    val productStatus = rememberExpiryStatus(product)
     // 已处理时用绿色压过原始状态色
     val statusColor = if (isCompleted) Green500 else statusToColor(productStatus)
 
@@ -832,11 +825,10 @@ private fun TaskCard(
 
                                 Spacer(modifier = Modifier.height(4.dp))
 
-                                val today = remember { DateUtils.todayTimestamp() }
-                                val daysLeft = remember(today, product.expiryDate) {
-                                    DateUtils.daysBetween(today, product.expiryDate)
-                                }
+                                val today = DateUtils.todayTimestamp()
+                                val daysLeft = DateUtils.daysBetween(today, product.expiryDate)
                                 val daysText = when {
+                                    daysLeft == 0 -> "今天到期"
                                     productStatus is ProductStatus.TakeDown -> {
                                         val t = productStatus as ProductStatus.TakeDown
                                         "可下架 · 到期还有${t.remainingDays}天"
@@ -851,7 +843,6 @@ private fun TaskCard(
                                         }
                                     }
                                     daysLeft < 0 -> "已过期 ${-daysLeft}天"
-                                    daysLeft == 0 -> "今天到期"
                                     daysLeft == 1 -> "明天到期（预警）"
                                     else -> "剩余 ${daysLeft}天"
                                 }
@@ -922,9 +913,9 @@ private fun ProductDetailSheet(
     onNavigateToDetail: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val status = remember { ExpiryRuleEngine.calculateStatus(product.shelfLifeDays, product.expiryDate) }
-    val today = remember { DateUtils.todayTimestamp() }
-    val daysLeft = remember { DateUtils.daysBetween(today, product.expiryDate) }
+    val status = rememberExpiryStatus(product)
+    val today = DateUtils.todayTimestamp()
+    val daysLeft = DateUtils.daysBetween(today, product.expiryDate)
 
     var showFullImage by remember { mutableStateOf(false) }
 

@@ -1,6 +1,5 @@
 package com.expiryguard.app.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
@@ -20,13 +19,10 @@ import com.expiryguard.app.ui.liquid.theme.ThemeMode
  * - 玻璃透明度、折射率、圆角缩放、弹簧阻尼、主题配色等外观旋钮由
  *   [com.expiryguard.app.ui.liquid.screens.AppSettingsState] 持久化驱动。
  *
- * @param darkTheme 是否使用深色主题，默认跟随系统
+ * 主题模式由 AppSettingsState 的 System/Light/Dark 单一状态驱动。
  */
 @Composable
-fun ExpiryGuardTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    content: @Composable () -> Unit
-) {
+fun ExpiryGuardTheme(content: @Composable () -> Unit) {
     val settings = rememberAppSettingsState()
 
     val visualMode = settings.visualMode
@@ -48,7 +44,7 @@ fun ExpiryGuardTheme(
 
     CompositionLocalProvider(LocalAppSettings provides settings) {
         LiquidUITheme(
-            themeMode = if (darkTheme) ThemeMode.Dark else ThemeMode.Light,
+            themeMode = settings.themeMode,
             visualMode = visualMode,
             palette = settings.palette,
             customSeed = Color(settings.customSeed),

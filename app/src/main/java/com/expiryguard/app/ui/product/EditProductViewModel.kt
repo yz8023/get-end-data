@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.time.LocalDate
 import javax.inject.Inject
 
@@ -70,11 +71,9 @@ class EditProductViewModel @Inject constructor(
                         isLoading = false
                     )
                 }
-                // 获取到期日期后匹配分组
-                if (product.expiryDate > 0) {
-                    val today = DateUtils.todayTimestamp()
-                    val daysBetween = DateUtils.daysBetween(today, product.expiryDate).coerceAtLeast(0)
-                    val matchedGroup = matchGroupByDays(daysBetween)
+                // 分组是保质期属性，不应随“剩余天数”逐日漂移。
+                if (product.shelfLifeDays > 0) {
+                    val matchedGroup = matchGroupByDays(product.shelfLifeDays)
                     _uiState.update { it.copy(shelfLifeGroup = matchedGroup) }
                 }
             } else {
@@ -134,17 +133,22 @@ class EditProductViewModel @Inject constructor(
     }
 
     fun updateExpiryDate(date: LocalDate) {
-        val today = DateUtils.todayTimestamp()
+        val state = _uiState.value
         val expiryTs = DateUtils.toTimestamp(date)
-        val daysBetween = DateUtils.daysBetween(today, expiryTs).coerceAtLeast(0)
-
-        val matchedGroup = matchGroupByDays(daysBetween)
+        val productionDate = state.product?.productionDate
+        val remainingDays = DateUtils.daysBetween(DateUtils.todayTimestamp(), expiryTs)
+        val actualShelfLifeDays = if (productionDate != null) {
+            DateUtils.daysBetween(productionDate, expiryTs).coerceAtLeast(1)
+        } else {
+            state.shelfLifeDays.takeIf { it > 0 } ?: remainingDays.coerceAtLeast(0)
+        }
+        val matchedGroup = matchGroupByDays(actualShelfLifeDays)
 
         _uiState.update {
             it.copy(
                 expiryDate = expiryTs,
                 shelfLifeGroup = matchedGroup,
-                shelfLifeDays = matchedGroup?.let { estimateShelfLifeDays(it.minDays, it.maxDays) } ?: daysBetween
+                shelfLifeDays = actualShelfLifeDays
             )
         }
     }
@@ -162,11 +166,15 @@ class EditProductViewModel @Inject constructor(
         _uiState.update { it.copy(categoryId = categoryId) }
     }
 
-    fun pickImage(uri: Uri) {
+    fun pickImage(uri: Uri, temporaryFile: File? = null) {
         val context = getApplication<Application>()
         viewModelScope.launch {
             val savedPath = withContext(Dispatchers.IO) {
-                ImageUtils.saveImage(context, uri)
+                try {
+                    ImageUtils.saveImage(context, uri)
+                } finally {
+                    temporaryFile?.let { ImageUtils.deleteTemporaryCameraImage(context, it) }
+                }
             }
             if (savedPath != null) {
                 _uiState.update { it.copy(photoPath = savedPath) }

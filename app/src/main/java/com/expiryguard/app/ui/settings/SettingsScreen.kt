@@ -1,6 +1,9 @@
 package com.expiryguard.app.ui.settings
 
+import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -70,6 +73,7 @@ import com.expiryguard.app.ui.liquid.screens.LocalAppSettings
 import com.expiryguard.app.ui.liquid.screens.rememberAppSettingsState
 import com.expiryguard.app.ui.liquid.theme.AppIcons
 import com.expiryguard.app.ui.liquid.theme.PaletteId
+import com.expiryguard.app.ui.liquid.theme.ThemeMode
 import com.expiryguard.app.ui.liquid.theme.VisualMode
 import com.expiryguard.app.ui.liquid.theme.palettePrimaryLight
 import kotlinx.coroutines.launch
@@ -99,6 +103,35 @@ fun SettingsScreen(
     var showTakeDownDaysDialog by remember { mutableStateOf(false) }
     // 导出格式选择对话框
     var showExportDialog by remember { mutableStateOf(false) }
+
+    val csvExportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/csv")
+    ) { uri: Uri? ->
+        if (uri != null) {
+            scope.launch {
+                val result = viewModel.exportDataAsCsv(uri)
+                Toast.makeText(
+                    context,
+                    result.fold({ "CSV 导出成功，共 $it 条记录" }, { "CSV 导出失败：${it.message}" }),
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+    val jsonExportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri: Uri? ->
+        if (uri != null) {
+            scope.launch {
+                val result = viewModel.exportDataAsJson(uri)
+                Toast.makeText(
+                    context,
+                    result.fold({ "JSON 导出成功，共 $it 条记录" }, { "JSON 导出失败：${it.message}" }),
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -213,19 +246,28 @@ fun SettingsScreen(
                 item(key = "section_appearance") {
                     SectionTitle("外观")
                 }
-                item(key = "switch_dark_mode") {
+                item(key = "theme_mode") {
                     PreferenceCard {
-                        PreferenceRow(
-                            icon = Icons.Default.DarkMode,
-                            title = "深色模式",
-                            subtitle = if (uiState.isDarkModeEnabled) "已开启" else "已关闭",
-                            trailing = {
-                                CompactSwitch(
-                                    checked = uiState.isDarkModeEnabled,
-                                    onCheckedChange = { viewModel.toggleDarkMode() }
-                                )
-                            }
-                        )
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                        ) {
+                            Text(
+                                text = "主题模式",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            SegmentedTabs(
+                                labels = listOf("跟随系统", "浅色", "深色"),
+                                selectedIndex = ThemeMode.entries.indexOf(settings.themeMode),
+                                onSelected = { index ->
+                                    settings.updateThemeMode(ThemeMode.entries[index])
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                     }
                 }
                 item(key = "card_glass_style") {
@@ -330,25 +372,11 @@ fun SettingsScreen(
         ExportDialog(
             onExportCsv = {
                 showExportDialog = false
-                scope.launch {
-                    val path = viewModel.exportDataAsCsv()
-                    if (path != null) {
-                        Toast.makeText(context, "CSV 已导出到: $path", Toast.LENGTH_LONG).show()
-                    } else {
-                        Toast.makeText(context, "导出失败", Toast.LENGTH_SHORT).show()
-                    }
-                }
+                csvExportLauncher.launch("ExpiryGuard_Products.csv")
             },
             onExportJson = {
                 showExportDialog = false
-                scope.launch {
-                    val path = viewModel.exportDataAsJson()
-                    if (path != null) {
-                        Toast.makeText(context, "JSON 已导出到: $path", Toast.LENGTH_LONG).show()
-                    } else {
-                        Toast.makeText(context, "导出失败", Toast.LENGTH_SHORT).show()
-                    }
-                }
+                jsonExportLauncher.launch("ExpiryGuard_Products.json")
             },
             onDismiss = { showExportDialog = false }
         )

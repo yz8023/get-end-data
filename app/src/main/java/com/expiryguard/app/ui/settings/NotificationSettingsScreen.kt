@@ -1,7 +1,9 @@
 package com.expiryguard.app.ui.settings
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -29,9 +31,14 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -40,6 +47,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.expiryguard.app.notification.NotificationHelper
 import com.expiryguard.app.ui.components.GlassTopAppBar
 import com.expiryguard.app.ui.components.GradientBackground
@@ -69,17 +79,37 @@ fun NotificationSettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    var systemNotificationsEnabled by remember {
+        mutableStateOf(NotificationHelper.areNotificationsEnabled(context))
+    }
+    var requestForTest by remember { mutableStateOf(false) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, context) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                systemNotificationsEnabled = NotificationHelper.areNotificationsEnabled(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     // 通知权限请求
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
+        systemNotificationsEnabled = NotificationHelper.areNotificationsEnabled(context)
         if (granted) {
-            NotificationHelper.sendTestNotification(context)
-            Toast.makeText(context, "测试通知已发送，请查看通知栏", Toast.LENGTH_SHORT).show()
+            if (requestForTest) {
+                NotificationHelper.sendTestNotification(context)
+                Toast.makeText(context, "测试通知已发送，请查看通知栏", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(context, "通知权限已授予", Toast.LENGTH_SHORT).show()
+            }
         } else {
             Toast.makeText(context, "需要通知权限才能发送通知", Toast.LENGTH_SHORT).show()
         }
+        requestForTest = false
     }
 
     Scaffold(
@@ -143,14 +173,46 @@ fun NotificationSettingsScreen(
                         else
                             Icons.Default.NotificationsOff,
                         title = "到期提醒通知",
-                        subtitle = if (uiState.isNotificationEnabled) "已开启" else "已关闭",
+                        subtitle = when {
+                            !uiState.isNotificationEnabled -> "已关闭"
+                            !systemNotificationsEnabled -> "应用已开启，但系统通知被禁用"
+                            else -> "已开启"
+                        },
                         trailing = {
                             CompactSwitch(
                                 checked = uiState.isNotificationEnabled,
-                                onCheckedChange = { viewModel.toggleNotification() }
+                                onCheckedChange = { enabled ->
+                                    viewModel.setNotificationEnabled(enabled)
+                                    if (enabled && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                        val granted = ContextCompat.checkSelfPermission(
+                                            context,
+                                            Manifest.permission.POST_NOTIFICATIONS
+                                        ) == PackageManager.PERMISSION_GRANTED
+                                        if (!granted) {
+                                            requestForTest = false
+                                            permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                        }
+                                    }
+                                }
                             )
                         }
                     )
+                }
+                if (uiState.isNotificationEnabled && !systemNotificationsEnabled) {
+                    TextButton(
+                        onClick = {
+                            runCatching {
+                                context.startActivity(
+                                    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                        putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                    }
+                                )
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("打开系统通知设置")
+                    }
                 }
 
                 // ========== 提醒天数设置 ==========
@@ -211,11 +273,14 @@ fun NotificationSettingsScreen(
                                 } else {
                                     true
                                 }
-                                if (hasPermission) {
+                                if (hasPermission && systemNotificationsEnabled) {
                                     NotificationHelper.sendTestNotification(context)
                                     Toast.makeText(context, "测试通知已发送，请查看通知栏", Toast.LENGTH_SHORT).show()
-                                } else {
+                                } else if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU && !hasPermission) {
+                                    requestForTest = true
                                     permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                } else {
+                                    Toast.makeText(context, "请先在系统设置中允许通知", Toast.LENGTH_SHORT).show()
                                 }
                             },
                             modifier = Modifier

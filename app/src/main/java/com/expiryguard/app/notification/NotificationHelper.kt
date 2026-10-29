@@ -34,6 +34,23 @@ object NotificationHelper {
     /** 待办提醒通知 ID */
     const val PENDING_NOTIFICATION_ID = 1002
 
+    /** 同时检查应用通知总开关与 Android 13+ 运行时权限。 */
+    fun areNotificationsEnabled(context: Context): Boolean {
+        val runtimePermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.POST_NOTIFICATIONS
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        val channelEnabled = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            manager.getNotificationChannel(CHANNEL_ID)?.importance != NotificationManager.IMPORTANCE_NONE
+        } else {
+            true
+        }
+        return runtimePermission && channelEnabled &&
+            NotificationManagerCompat.from(context).areNotificationsEnabled()
+    }
+
     /**
      * 创建通知渠道（在 Application.onCreate 中调用）
      *
@@ -63,6 +80,7 @@ object NotificationHelper {
      * @param context 上下文
      */
     fun sendTestNotification(context: Context) {
+        if (!areNotificationsEnabled(context)) return
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
@@ -107,7 +125,7 @@ object NotificationHelper {
         takeDownCount: Int = 0,
         expiredCount: Int = 0
     ) {
-        if (pendingCount <= 0) return
+        if (pendingCount <= 0 || !areNotificationsEnabled(context)) return
 
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
@@ -131,7 +149,7 @@ object NotificationHelper {
         }
 
         val bigText = buildString {
-            appendLine("今日待处理：$pendingCount 个清单")
+            appendLine("待处理与预警：$pendingCount 个清单")
             if (takeDownCount > 0) {
                 appendLine("可下架：$takeDownCount 个")
             }

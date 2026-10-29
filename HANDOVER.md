@@ -1,170 +1,77 @@
-# 过期管家 (ExpiryGuard) 项目交接文档
+# ExpiryGuard（过期管家）交接文档
 
-> 本文档面向接手者，目标：30 分钟内从零构建并运行首个 debug APK。
+> 当前版本：v1.1.7（versionCode 15）
+>
+> 当前工程：根目录 `app/`；历史嵌套工程已移除。
+>
+> 远程仓库：`https://github.com/yz8023/get-end-data`
 
-## 1. 项目概述
+## 1. 技术与数据
 
-- **定位**：一款基于 Android Jetpack Compose 的本地过期提醒应用，通过拍照/手动输入记录商品保质期，到期前自动提醒并区分「可退货 / 可下架 / 已过期」状态。
-- **技术栈**：Kotlin 2.0.21 + Jetpack Compose (Material3) + Hilt (DI) + Room (本地数据库) + DataStore + WorkManager + CameraX + Coil + Vico(图表)
-- **minSdk**: 26 | **targetSdk**: 35 | **compileSdk**: 35
-- **包名**：`com.expiryguard.app`
-- **应用名**：过期管家
-- **当前版本**：`versionCode=3` / `versionName=1.0.2`
-- **最新 commit**：`d029bea`（feat: 落地四项用户反馈需求：名称非必填 / 日期取月日默认今年 / 可下架状态 / 两阶段处理）
-- **远程仓库**：`https://github.com/Forinxy/get-end-data`
+- Kotlin、Jetpack Compose Material3、Hilt、Room、DataStore、WorkManager、CameraX、Coil、Vico。
+- `minSdk=26`，`compileSdk=36`，`targetSdk=35`，JDK 21。
+- 应用完全离线，无后端和第三方 API Key。
+- Room 数据库：`expiry_guard_db`，当前版本 **6**；所有迁移集中在 `AppDatabase.ALL_MIGRATIONS`，禁止使用生产 destructive fallback。
+- 产品有稳定 UUID；本地数字 ID 只用于数据库主键，不能用于跨设备恢复身份。
 
-## 2. 开发环境
-
-| 项目 | 要求 |
-|------|------|
-| OS | Linux / macOS / Windows (WSL2) |
-| JDK | OpenJDK 17（推荐 Eclipse Temurin 或 OpenJDK 17.0.x） |
-| Android SDK | compileSdk 35，build-tools 35.0.0，platform-tools |
-| Gradle | 8.9（由 wrapper 自动下载） |
-| 第三方 Key | 本项目离线运行，无需后端 / API Key；若后续接云同步可在此处填写 `<YOUR_API_KEY>` |
-
-> 本仓库的 `.github/workflows/build-apk.yml` 使用 Temurin 17 + ubuntu-latest，可一键 CI 出包。
-
-## 3. 构建运行
+## 2. 本地构建
 
 ```bash
-# 克隆
-git clone https://github.com/Forinxy/get-end-data.git ExpiryGuard
-cd ExpiryGuard
-
-# 配置 Android SDK 路径（可选，CI 或内网可省略）
-echo "sdk.dir=/path/to/Android/Sdk" > local.properties
-
-# 赋予 gradlew 执行权限（Windows 可跳过）
+git clone https://github.com/yz8023/get-end-data.git
+cd get-end-data
+export JAVA_HOME=/path/to/jdk-21
+export ANDROID_HOME=/path/to/android-sdk
+export ANDROID_SDK_ROOT="$ANDROID_HOME"
 chmod +x gradlew
-
-# 构建 Debug APK
 ./gradlew :app:assembleDebug --no-daemon
-
-# 产出路径
-# app/build/outputs/apk/debug/app-debug.apk
 ```
 
-- **已知坑**
-  - 国内网络访问 Google Maven 偶发超时：`settings.gradle.kts` 已内置阿里云镜像作为优先源，默认已可用。
-  - GitHub Actions 中若依赖下载失败，workflow 已配置 temurin 17 并自动从镜像拉取 Gradle（见下节）。
-  - 首次构建耗时约 5~10 分钟（全量下载依赖），后续增量构建 30s 内。
-- **GitHub Actions 构建**：`.github/workflows/build-apk.yml`，触发条件为 push 到 `main`/`master` 或手动 workflow_dispatch。构建完自动创建 Release 并上传 APK + 源码包。
+Debug APK：`app/build/outputs/apk/debug/app-debug.apk`。
 
-## 4. 依赖与镜像
+## 3. 验证命令
 
-| 官方源 | 镜像地址 |
-|--------|----------|
-| Google Maven | `https://maven.aliyun.com/repository/google` |
-| Maven Central | `https://maven.aliyun.com/repository/central` |
-| Gradle 发行版 | `https://mirrors.cloud.tencent.com/gradle/` |
+```bash
+./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon
+# 有 Android 设备或模拟器时：
+./gradlew :app:connectedDebugAndroidTest --no-daemon
+```
 
-- 构建脚本默认启用 mirror（`settings.gradle.kts` 已配置 `maven.aliyun.com/repository/google`、`maven.aliyun.com/repository/public`、`maven.aliyun.com/repository/gradle-plugin`）。
-- 如遇 GitHub 依赖（如 AGP、KSP、Hilt 插件）下载失败，可按顺序尝试：
-  1. 重试（网络抖动）
-  2. 检查代理：`http://proxy.example.com:7890`（若企业内部有代理）
-  3. 使用腾讯云镜像替换 Gradle wrapper：在 `gradle/wrapper/gradle-wrapper.properties` 把 `distributionUrl` 改为 `https://mirrors.cloud.tencent.com/gradle/gradle-8.9-bin.zip`
-  4. 手动下载 jar 放至 `~/.gradle/wrapper/dists/gradle-8.9-bin/<hash>/gradle-8.9/lib/`
+测试覆盖日期/规则、ZIP 条目校验、加密容器（密码/恢复密钥/错误凭据/篡改）、SAF 文件 URI 往返，以及真实 Room 打开器驱动的 v1–v5→v6 数据保留迁移。模拟器测试位于 `app/src/androidTest/`。
 
-## 5. 本地依赖服务
+## 4. 关键目录
 
-- **无后端服务**：数据完全本地存储在 Room 数据库（SQLite）。
-- 通知提醒由 WorkManager + `NotificationHelper` 驱动，需要设备允许应用发送通知和调度精确闹钟。
-- 权限需求：相机（拍照识商品）、读取媒体（选相册图）、通知、精确闹钟、振动、开机自启。
+- `data/db/`：Entity、DAO、迁移和 v6 schema。
+- `data/repository/ExpiryPolicyRepository.kt`：取件、提醒窗口和自定义分组的统一策略源。
+- `domain/engine/`：纯日期规则引擎；调用方传入不可变 `ExpiryPolicy` 和明确的今天。
+- `data/backup/BackupManager.kt`：SAF 备份、ZIP 白名单/canonical/大小限制、事务恢复、v1 兼容和 UUID 去重。
+- `data/backup/BackupCrypto.kt`：随机数据密钥 + AES-GCM；PBKDF2 密码包裹和独立恢复密钥包裹，支持跨设备恢复，不持久化凭据。
+- `data/export/DataExporter.kt`：流式 CSV/JSON SAF 导出。
+- `util/LocalDateTicker.kt`：跨午夜、改时间和时区变化刷新。
+- `util/ImageUtils.kt`：采样解码、EXIF 方向、受控路径和临时相机原图清理；FileProvider 仅开放 `cache/camera/` 与私有图片目录。
+- `.github/workflows/build-apk.yml`：验证、模拟器测试、签名发布三阶段门禁。
 
-## 6. 开发进度
+## 5. 发布流程
 
-| 状态 | 内容 |
-|------|------|
-| ✅ 已完成 | 四模块（首页待办、商品列表、统计、回收站）+ 设置（深色模式、备份恢复、分类管理、保质期组、关于、通知设置）+ 定时 Worker + 通知 + 镜像扫描入口 |
-| ✅ 进行中 | 无 |
-| 🚫 已搁置 | 无 |
-| 最近可运行 commit | `d029bea` |
+1. 在 `app/build.gradle.kts` 更新 `versionCode`/`versionName`，更新 `RELEASE_NOTES.md`。
+2. 确认单测、Lint、Debug 构建和模拟器迁移测试通过。
+3. 在 GitHub 仓库 Secrets 配置以下**值**，不要把密钥写入仓库：
+   - `EXPIRYGUARD_KEYSTORE_BASE64`
+   - `EXPIRYGUARD_STORE_PASSWORD`
+   - `EXPIRYGUARD_KEY_PASSWORD`
+   - `EXPIRYGUARD_KEY_ALIAS`
+4. 推送 `v<versionName>` 标签。CI 先执行测试，再使用 Secrets 签名 release APK、校验签名、生成源码包和 SHA-256，并创建 GitHub Release。
+5. 正式发布只接受 `app-release.apk`，不得把 debug APK 改名为正式包。
 
-## 7. 待开发内容
+首次启用独立 release 签名后，旧 CI debug 包可能无法覆盖安装；应先备份数据，再按系统提示处理签名冲突。
 
-| 功能 | 优先级 | 预估工时 | 前置依赖 |
-|------|--------|----------|----------|
-| 云同步 / 多端数据打通 | P1 | 3~5 天 | 后端接口 |
-| 商品条形码 OCR 识别（本地 / 云端） | P2 | 2~3 天 | ML Kit 接入或后端服务 |
-| 订阅 / 自动续订商品功能 | P2 | 1~2 天 | 商品模型扩展 |
-| 国际化（i18n） | P3 | 1 天 | 字符串资源抽离 |
-| 单元测试 / UI 测试 | P2 | 2~3 天 | 稳定核心逻辑 |
+## 6. 数据安全注意事项
 
-## 8. 架构与关键模块
+- 新备份包含名称、日期、备注和图片，并使用 AES-GCM 加密；密码不会保存，恢复密钥只在成功界面显示一次，必须离线备份。忘记密码且丢失恢复密钥将无法恢复。
+- 恢复只接受 `data.json` 和受限图片条目，不信任备份中的绝对图片路径；旧版明文 ZIP 仅为兼容导入，不再由新界面生成。
+- 加密备份使用随机数据密钥，分别由密码派生密钥和高熵恢复密钥包裹；跨设备恢复不依赖原设备的 Android Keystore。
+- 升级前建议先导出 `.expiryguard` 备份；任何迁移验证都不能替代真实旧 APK 的人工升级 smoke test。
+- 发布密钥丢失会影响后续覆盖升级，应由仓库所有者离线备份并定期轮换访问凭据。
 
-- **架构模式**：MVVM + Hilt DI + Compose Navigation
-- **核心入口**：
-  - `ExpiryGuardApp.kt`：Application，初始化 NotificationChannel 与 WorkManager WorkerFactory
-  - `MainActivity.kt`：Activity 启动点，Compose 根节点，负责初始化 DataStore、触发 ReminderScheduler、注册 WorkManager worker
-- **关键模块**
-  - `data/db/`：Room DAO + Entity，`ProductRepository` 封装 CRUD
-  - `domain/engine/ExpiryRuleEngine.kt`：状态机核心，输入 `shelfLifeDays` + `expiryDate` 输出 `ProductStatus`（Safe / ExpiringSoon / Returnable / TakeDown / Expired）
-  - `domain/model/ProductStatus.kt`：状态枚举，`TakeDown(remainingDays)` 为新加状态
-  - `notification/`：`NotificationHelper`（通知渠道/发送）、`ReminderScheduler`（调度）、`ExpiryReminderWorker`（WorkManager 定时任务）
-  - `ui/home/`：今日待办列表（滑动标记下架/退货/完成）
-  - `ui/product/`：商品增删改查、列表筛选（按状态：全部 / 可下架 / 即将到期 / 可退货 / 已过期）
-  - `ui/settings/`：6 个设置子页面
-  - `ui/stats/`：饼图 + 条形图统计
-  - `ui/trash/`：回收站（按颜色区分已下架/已退货/其他）
-- **已知技术债**
-  - 部分 Compose `Icons.Filled.ArrowBack` 已弃用，应改用 `Icons.AutoMirrored.Filled.ArrowBack`（警告不影响运行）
-  - `statusBarColor` 已弃用，建议迁移至 `WindowInsetsControllerCompat`
+## 7. 仍需人工验收的 ROM 行为
 
-## 9. 代码概览与已知问题
-
-- 结构：`app/src/main/java/com/expiryguard/app/` 下按 data/domain/ui 三层；资源在 `res/`。
-- 致命/严重问题：**无**。本次交付已通过 `./gradlew assembleDebug` 编译验证（耗时 ~5m24s，仅 warnings 无 errors）。
-
-## 10. 架构简评
-
-- **评价**：良好。分层清晰（data/domain/ui），DI（Hilt）与状态（ViewModel + StateFlow）规整，规则引擎独立便于测试。
-- **改进方向**
-  1. 状态计算与 UI 耦合较少，但部分 Screen 内重复调用 `ExpiryRuleEngine.calculateStatus()`，可封装为扩展或 ViewModel 派生属性。
-  2. `CategoryManagementScreen` / `ShelfLifeGroupManagementScreen` 逻辑偏重，可拆分为独立 ViewModel。
-  3. 通知提醒时机可细化（到期当天 vs 提前 2 天等差异化策略）。
-  4. 缺少单测覆盖，建议为 `ExpiryRuleEngine` 补充 JUnit 用例。
-  5. 备份恢复涉及 FileProvider + 外部存储，可补充边界 case 测试（无 SD 卡、权限拒绝）。
-
-## 11. 测试建议
-
-- **核心流程**
-  - 添加商品 → 首页展示 → 滑动标记完成 / 下架 / 退货处理
-  - 修改日期为「明天」→ 推送「可下架」通知 → 滑动下架后从今日待办消失
-  - 修改日期为「20 天前」→ 进入「可退货」→ 滑动退货处理后消失
-  - 已过期商品出现在列表并标红
-- **重点模块**：`ExpiryRuleEngine` 边界（零天/负数/闰年 2/29/月份仅输入）；WorkManager 触发时机（系统时钟变更、设备重启）；备份恢复（跨版本兼容）。
-- **边界问题**：`DatePickerDialog` 在闰年 2/29 年份非闰年时回退到 2/28；`parseDate("3")` 月份-only 当前按当月 1 号处理，如需提示月份范围需补充。
-
-## 12. 账号与密钥
-
-- 本项目离线运行，无需后端 / 第三方 Key。
-- 若后续接入：
-  - 云同步后端：`<YOUR_BACKEND_URL>`
-  - ML Kit 条形码识别：`<YOUR_GMS_API_KEY>`
-  - 统计图表服务（如接）：`<YOUR_API_KEY>`
-
-## 13. 常见问题
-
-| 现象 | 解法 |
-|------|------|
-| `java: command not found` | 安装 JDK 17：`apt install openjdk-17-jdk-headless` 或 `brew install openjdk@17` |
-| `sdkmanager not found` / `ANDROID_HOME empty` | 安装 Android SDK Command Line Tools，设置 `export ANDROID_HOME=$HOME/Android/Sdk` 并在 `local.properties` 写入 `sdk.dir=<路径>` |
-| Gradle 下载超时 | 改 `distributionUrl` 到腾讯云镜像（见第 4 节） |
-| KSP/Hilt 注解处理器失败 | 确认 `ksp` 插件版本与 Kotlin 2.0.21 对齐；清理 `build/` 后重试 |
-| `Unable to strip .so` 警告 | 正常，不影响运行；release 包需签名才能安装 |
-| 真机调试「INSTALL_FAILED_UPDATE_INCOMPATIBLE」 | 卸载旧包或换设备；debug keystore 不同会导致安装冲突 |
-| GitHub Actions 构建超时 | 默认 timeout 6 分钟，可增大或在 `workflow_dispatch` 时传入 `--max-workers=2` |
-
-## 14. 验收标准
-
-- [ ] clone 仓库后执行 `./gradlew :app:assembleDebug --no-daemon` 成功产出 `app/build/outputs/apk/debug/app-debug.apk`
-- [ ] 安装 APK 到真机/模拟器，能打开首页看到今日待办列表
-- [ ] 添加一个临期商品，能触发「可退货」「可下架」徽标与通知
-- [ ] 滑动「下架」后该商品从今日待办消失；再次添加并滑动「退货处理」同样消失
-- [ ] push 到 `main` 后 GitHub Actions 自动构建，Release 页出现 APK + 源码 zip
-
----
-*最后更新：2026-08-21*
-*Commit: d029bea*
-*仓库：https://github.com/Forinxy/get-end-data*
+相机回调、SAF 文档授权、通知运行时权限、WorkManager 调度、时区/DST 和不同厂商 ROM 的通知策略。上述项目不能仅靠 JVM 测试证明。

@@ -20,6 +20,9 @@ interface CategoryDao {
     @Query("SELECT * FROM categories ORDER BY name ASC")
     fun getAllCategories(): Flow<List<CategoryEntity>>
 
+    @Query("SELECT * FROM categories ORDER BY id ASC")
+    suspend fun getAllCategoriesSnapshot(): List<CategoryEntity>
+
     /**
      * 插入分类，返回自增 ID
      */

@@ -1,6 +1,7 @@
 package com.expiryguard.app.ui.settings
 
 import android.content.Context
+import android.net.Uri
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -8,12 +9,11 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.expiryguard.app.data.repository.ProductRepository
+import com.expiryguard.app.data.export.DataExporter
 import com.expiryguard.app.domain.engine.ExpiryRuleEngine
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 
@@ -32,7 +33,6 @@ data class SettingsUiState(
     val isNotificationEnabled: Boolean = true,
     val reminderDays: Int = 7,
     val autoCleanupDays: Int = 30,
-    val isDarkModeEnabled: Boolean = false,
     val takeDownDays: Int = 2,
     val appVersion: String = "1.0.0"
 )
@@ -44,7 +44,7 @@ data class SettingsUiState(
  */
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val repository: ProductRepository,
+    private val dataExporter: DataExporter,
     private val dataStore: DataStore<Preferences>,
     @ApplicationContext private val appContext: Context
 ) : ViewModel() {
@@ -57,7 +57,6 @@ class SettingsViewModel @Inject constructor(
         private val KEY_NOTIFICATION_ENABLED = booleanPreferencesKey("notification_enabled")
         private val KEY_REMINDER_DAYS = intPreferencesKey("reminder_days")
         private val KEY_AUTO_CLEANUP_DAYS = intPreferencesKey("auto_cleanup_days")
-        private val KEY_DARK_MODE_ENABLED = booleanPreferencesKey("dark_mode_enabled")
         private val KEY_TAKE_DOWN_DAYS = intPreferencesKey("take_down_days")
     }
 
@@ -72,7 +71,6 @@ class SettingsViewModel @Inject constructor(
                     isNotificationEnabled = preferences[KEY_NOTIFICATION_ENABLED] ?: true,
                     reminderDays = preferences[KEY_REMINDER_DAYS] ?: 7,
                     autoCleanupDays = preferences[KEY_AUTO_CLEANUP_DAYS] ?: 30,
-                    isDarkModeEnabled = preferences[KEY_DARK_MODE_ENABLED] ?: false,
                     takeDownDays = preferences[KEY_TAKE_DOWN_DAYS] ?: 2,
                     appVersion = versionName
                 )
@@ -89,6 +87,12 @@ class SettingsViewModel @Inject constructor(
                 val current = preferences[KEY_NOTIFICATION_ENABLED] ?: true
                 preferences[KEY_NOTIFICATION_ENABLED] = !current
             }
+        }
+    }
+
+    fun setNotificationEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            dataStore.edit { it[KEY_NOTIFICATION_ENABLED] = enabled }
         }
     }
 
@@ -113,19 +117,6 @@ class SettingsViewModel @Inject constructor(
             dataStore.edit { preferences ->
                 preferences[KEY_TAKE_DOWN_DAYS] = days.coerceAtLeast(1)
             }
-            ExpiryRuleEngine.updateTakeDownThreshold(days)
-        }
-    }
-
-    /**
-     * 切换深色模式
-     */
-    fun toggleDarkMode() {
-        viewModelScope.launch {
-            dataStore.edit { preferences ->
-                val current = preferences[KEY_DARK_MODE_ENABLED] ?: false
-                preferences[KEY_DARK_MODE_ENABLED] = !current
-            }
         }
     }
 
@@ -142,94 +133,11 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    /**
-     * 导出数据为 CSV 格式
-     *
-     * @return 导出文件路径，失败返回 null
-     */
-    suspend fun exportDataAsCsv(): String? {
-        return try {
-            val products = repository.getAllActiveProducts().first()
-            val csvContent = buildString {
-                appendLine("名称,条形码,到期日期,保质期(天),备注,创建时间")
-                products.forEach { product ->
-                    appendLine(
-                        "${product.name}," +
-                        "${product.barcode ?: ""}," +
-                        "${product.expiryDate}," +
-                        "${product.shelfLifeDays}," +
-                        "${product.notes?.replace(",", "，") ?: ""}," +
-                        "${product.createdAt}"
-                    )
-                }
-            }
-            val file = File(appContext.cacheDir, "expiryguard_export.csv")
-            file.writeText(csvContent)
-            file.absolutePath
-        } catch (e: Exception) {
-            null
-        }
+    suspend fun exportDataAsCsv(uri: Uri): Result<Int> = runCatching {
+        dataExporter.exportCsv(uri)
     }
 
-    /**
-     * 导出数据为 JSON 格式
-     *
-     * @return 导出文件路径，失败返回 null
-     */
-    suspend fun exportDataAsJson(): String? {
-        return try {
-            val products = repository.getAllActiveProducts().first()
-            val gson = Gson()
-            val jsonContent = gson.toJson(products)
-            val file = File(appContext.cacheDir, "expiryguard_export.json")
-            file.writeText(jsonContent)
-            file.absolutePath
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    /**
-     * 备份数据到指定目录
-     *
-     * @param backupDir 备份目录路径
-     * @return 是否成功
-     */
-    suspend fun backupData(backupDir: String): Boolean {
-        return try {
-            val products = repository.getAllActiveProducts().first()
-            val gson = Gson()
-            val jsonContent = gson.toJson(products)
-            val backupFile = File(backupDir, "expiryguard_backup_${System.currentTimeMillis()}.json")
-            backupFile.parentFile?.mkdirs()
-            backupFile.writeText(jsonContent)
-            true
-        } catch (e: Exception) {
-            false
-        }
-    }
-
-    /**
-     * 从备份文件恢复数据
-     *
-     * @param backupFilePath 备份文件路径
-     * @return 是否成功
-     */
-    suspend fun restoreData(backupFilePath: String): Boolean {
-        return try {
-            val backupFile = File(backupFilePath)
-            if (!backupFile.exists()) return false
-            val jsonContent = backupFile.readText()
-            val gson = Gson()
-            val type = object : TypeToken<List<com.expiryguard.app.data.db.entity.ProductEntity>>() {}.type
-            val products: List<com.expiryguard.app.data.db.entity.ProductEntity> = gson.fromJson(jsonContent, type)
-            // 逐个插入恢复的产品
-            products.forEach { product ->
-                repository.insert(product)
-            }
-            true
-        } catch (e: Exception) {
-            false
-        }
+    suspend fun exportDataAsJson(uri: Uri): Result<Int> = runCatching {
+        dataExporter.exportJson(uri)
     }
 }

@@ -7,11 +7,13 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.expiryguard.app.data.repository.ExpiryPolicyRepository
 import com.expiryguard.app.data.repository.ProductRepository
 import com.expiryguard.app.domain.engine.ExpiryRuleEngine
 import com.expiryguard.app.util.DateUtils
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 
 /**
@@ -25,7 +27,8 @@ class ExpiryReminderWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted params: WorkerParameters,
     private val repository: ProductRepository,
-    private val dataStore: DataStore<Preferences>
+    private val dataStore: DataStore<Preferences>,
+    private val policyRepository: ExpiryPolicyRepository
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
@@ -44,7 +47,11 @@ class ExpiryReminderWorker @AssistedInject constructor(
 
             val products = repository.getAllActiveProducts().first()
             val today = DateUtils.todayTimestamp()
-            val groups = ExpiryRuleEngine.computePendingGroups(products, today)
+            val groups = ExpiryRuleEngine.computePendingGroups(
+                products = products,
+                today = today,
+                policy = policyRepository.current()
+            )
 
             val pendingCount = groups.totalCount
             if (pendingCount > 0) {
@@ -57,6 +64,8 @@ class ExpiryReminderWorker @AssistedInject constructor(
                 )
             }
             Result.success()
+        } catch (e: CancellationException) {
+            throw e
         } catch (_: Exception) {
             Result.retry()
         }
@@ -68,10 +77,10 @@ class ExpiryReminderWorker @AssistedInject constructor(
     private suspend fun autoCleanupTrash(cleanupDays: Int) {
         val threshold = System.currentTimeMillis() - cleanupDays * 24L * 60 * 60 * 1000
         val trashed = repository.getTrashedProducts().first()
-        val expiredIds = trashed.filter { it.deletedAt != null && it.deletedAt!! < threshold }
+        val expiredIds = trashed.filter { it.deletedAt != null && it.deletedAt < threshold }
             .map { it.id }
         if (expiredIds.isNotEmpty()) {
-            repository.permanentDelete(expiredIds)
+            repository.permanentDelete(expiredIds).getOrThrow()
         }
     }
 }

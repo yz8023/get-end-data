@@ -207,8 +207,16 @@ class ShelfLifeGroupManagementViewModel @Inject constructor(
             return
         }
 
-        if (minDays >= maxDays && maxDays != Int.MAX_VALUE) {
+        if (minDays >= maxDays) {
             _uiState.update { it.copy(errorMessage = "最大天数必须大于最小天数") }
+            return
+        }
+        val editingId = state.editingGroup?.id
+        val overlaps = state.groups.any {
+            it.id != editingId && minDays < it.maxDays && maxDays > it.minDays
+        }
+        if (overlaps) {
+            _uiState.update { it.copy(errorMessage = "分组区间不能与已有分组重叠") }
             return
         }
 

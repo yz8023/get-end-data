@@ -1,28 +1,48 @@
 package com.expiryguard.app.data.db.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
+import java.util.UUID
 
-/**
- * 产品实体类，对应数据库中的 products 表
- */
-@Entity(tableName = "products")
+@Entity(
+    tableName = "products",
+    foreignKeys = [
+        ForeignKey(
+            entity = CategoryEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["categoryId"],
+            onDelete = ForeignKey.SET_NULL
+        )
+    ],
+    indices = [
+        Index(value = ["uuid"], unique = true),
+        Index(value = ["expiryDate"]),
+        Index(value = ["deletedAt"]),
+        Index(value = ["categoryId"]),
+        Index(value = ["deletedAt", "isCompleted", "expiryDate"])
+    ]
+)
 data class ProductEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val name: String,                                   // 产品名称
-    val barcode: String? = null,                        // 条形码
-    val categoryId: Long? = null,                       // 分类 ID
-    val photoPath: String? = null,                      // 照片路径
-    val productionDate: Long? = null,                   // 生产日期（时间戳）
-    val expiryDate: Long,                               // 到期日期（时间戳）
-    val shelfLifeDays: Int = 0,                         // 保质期天数
-    val notes: String? = null,                          // 备注
-    val createdAt: Long = System.currentTimeMillis(),   // 创建时间
-    val updatedAt: Long = System.currentTimeMillis(),   // 更新时间
-    val deletedAt: Long? = null,                        // 删除时间（软删除标记）
-    val isCompleted: Boolean = false,                   // 是否已完成
-    val completedAt: Long? = null,                      // 完成时间（isCompleted 为 true 时记录）
-    val completedType: String? = null                   // 完成类型："TAKE_DOWN"已下架 / "RETURN"已退货处理 / null 未完成
+    /** 跨设备稳定身份；本地自增 ID 不再用于增量恢复去重。 */
+    @ColumnInfo(defaultValue = "''") val uuid: String = UUID.randomUUID().toString(),
+    val name: String,
+    val barcode: String? = null,
+    val categoryId: Long? = null,
+    val photoPath: String? = null,
+    val productionDate: Long? = null,
+    val expiryDate: Long,
+    val shelfLifeDays: Int = 0,
+    val notes: String? = null,
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis(),
+    val deletedAt: Long? = null,
+    val isCompleted: Boolean = false,
+    val completedAt: Long? = null,
+    val completedType: String? = null
 ) {
     companion object {
         const val COMPLETED_TYPE_TAKE_DOWN = "TAKE_DOWN"

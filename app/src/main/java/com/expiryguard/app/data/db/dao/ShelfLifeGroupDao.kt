@@ -21,6 +21,9 @@ interface ShelfLifeGroupDao {
     @Query("SELECT * FROM shelf_life_groups ORDER BY sortOrder ASC")
     fun getAllGroups(): Flow<List<ShelfLifeGroupEntity>>
 
+    @Query("SELECT * FROM shelf_life_groups ORDER BY id ASC")
+    suspend fun getAllGroupsSnapshot(): List<ShelfLifeGroupEntity>
+
     /**
      * 根据 ID 获取单个分组
      */

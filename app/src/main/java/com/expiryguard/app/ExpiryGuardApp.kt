@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.expiryguard.app.notification.NotificationHelper
+import com.expiryguard.app.util.ImageUtils
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
@@ -15,8 +16,9 @@ class ExpiryGuardApp : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
-        // 创建通知渠道
+        // 创建通知渠道并清理异常退出留下的相机临时原图
         NotificationHelper.createNotificationChannel(this)
+        ImageUtils.cleanupStaleCameraImages(this)
     }
 
     override val workManagerConfiguration: Configuration

@@ -70,6 +70,7 @@ import com.expiryguard.app.ui.components.GlassCardSmall
 import com.expiryguard.app.ui.components.GradientBackground
 import com.expiryguard.app.ui.components.GlassTopAppBar
 import com.expiryguard.app.ui.components.ProductCard
+import com.expiryguard.app.ui.rememberExpiryStatus
 import com.expiryguard.app.ui.liquid.components.GlassDialog
 import com.expiryguard.app.ui.liquid.components.GlassIconButton
 import com.expiryguard.app.ui.liquid.components.GlassTextField
@@ -337,9 +338,9 @@ fun ProductListScreen(
             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
         ) {
             val product = selectedProduct!!
-            val status = remember { ExpiryRuleEngine.calculateStatus(product.shelfLifeDays, product.expiryDate) }
-            val today = remember { DateUtils.todayTimestamp() }
-            val daysLeft = remember { DateUtils.daysBetween(today, product.expiryDate) }
+            val status = rememberExpiryStatus(product)
+            val today = DateUtils.todayTimestamp()
+            val daysLeft = DateUtils.daysBetween(today, product.expiryDate)
             val daysText = when {
                 daysLeft < 0 -> "已过期 ${-daysLeft}天"
                 daysLeft == 0 -> "今天到期"
@@ -733,10 +734,7 @@ private fun ProductList(
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         items(products, key = { it.id }) { product ->
-            val status = ExpiryRuleEngine.calculateStatus(
-                product.shelfLifeDays,
-                product.expiryDate
-            )
+            val status = rememberExpiryStatus(product)
             val isSelected = product.id in selectedIds
 
             if (isMultiSelectMode) {
@@ -779,10 +777,7 @@ private fun ProductGrid(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(products, key = { it.id }) { product ->
-            val status = ExpiryRuleEngine.calculateStatus(
-                product.shelfLifeDays,
-                product.expiryDate
-            )
+            val status = rememberExpiryStatus(product)
             val isSelected = product.id in selectedIds
 
             GridProductCard(
@@ -858,7 +853,7 @@ private fun GridProductCard(
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
-    val today = remember { DateUtils.todayTimestamp() }
+    val today = DateUtils.todayTimestamp()
     val daysLeft = remember(today, product.expiryDate) {
         DateUtils.daysBetween(today, product.expiryDate)
     }

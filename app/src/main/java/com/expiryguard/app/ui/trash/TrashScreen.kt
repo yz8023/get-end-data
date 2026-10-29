@@ -49,6 +49,7 @@ import com.expiryguard.app.domain.model.ProductStatus
 import com.expiryguard.app.ui.components.EmptyState
 import com.expiryguard.app.ui.components.GlassCard
 import com.expiryguard.app.ui.components.GlassTopAppBar
+import com.expiryguard.app.ui.rememberExpiryStatus
 import com.expiryguard.app.ui.liquid.components.GlassIconButton
 import com.expiryguard.app.ui.liquid.components.PrimaryButton
 import com.expiryguard.app.ui.liquid.components.SecondaryButton
@@ -259,9 +260,7 @@ private fun TrashProductCard(
                 }
 
                 // 状态颜色圆点
-                val status = ExpiryRuleEngine.calculateStatus(
-                    product.shelfLifeDays, product.expiryDate
-                )
+                val status = rememberExpiryStatus(product)
                 Box(
                     modifier = Modifier
                         .size(8.dp)

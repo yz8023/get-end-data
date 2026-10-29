@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.time.LocalDate
 import javax.inject.Inject
 
@@ -246,21 +247,20 @@ class AddProductViewModel @Inject constructor(
         val expiryTs = DateUtils.toTimestamp(date)
         val state = _uiState.value
 
-        // 优先使用实际保质期天数（生产日期 → 到期日）
-        val daysForMatching = if (state.productionDate != null) {
-            DateUtils.daysBetween(state.productionDate!!, expiryTs).coerceAtLeast(1)
+        // 有生产/到期日期时必须保存真实天数，不能用分组中点覆盖。
+        val remainingDays = DateUtils.daysBetween(DateUtils.todayTimestamp(), expiryTs)
+        val actualShelfLifeDays = if (state.productionDate != null) {
+            DateUtils.daysBetween(state.productionDate, expiryTs).coerceAtLeast(1)
         } else {
-            val today = DateUtils.todayTimestamp()
-            DateUtils.daysBetween(today, expiryTs).coerceAtLeast(0)
+            state.shelfLifeDays.takeIf { it > 0 } ?: remainingDays.coerceAtLeast(0)
         }
-
-        val matchedGroup = matchGroupByDays(daysForMatching)
+        val matchedGroup = matchGroupByDays(actualShelfLifeDays)
 
         _uiState.update {
             it.copy(
                 expiryDate = expiryTs,
                 shelfLifeGroup = matchedGroup,
-                shelfLifeDays = matchedGroup?.let { estimateShelfLifeDays(it.minDays, it.maxDays) } ?: daysForMatching
+                shelfLifeDays = actualShelfLifeDays
             )
         }
     }
@@ -269,7 +269,17 @@ class AddProductViewModel @Inject constructor(
      * 更新生产日期
      */
     fun updateProductionDate(date: LocalDate) {
-        _uiState.update { it.copy(productionDate = DateUtils.toTimestamp(date)) }
+        val productionTs = DateUtils.toTimestamp(date)
+        _uiState.update { state ->
+            val actualDays = state.expiryDate?.let { expiry ->
+                DateUtils.daysBetween(productionTs, expiry).coerceAtLeast(1)
+            }
+            state.copy(
+                productionDate = productionTs,
+                shelfLifeDays = actualDays ?: state.shelfLifeDays,
+                shelfLifeGroup = actualDays?.let { matchGroupByDays(it) } ?: state.shelfLifeGroup
+            )
+        }
     }
 
     /**
@@ -307,9 +317,13 @@ class AddProductViewModel @Inject constructor(
     fun calculateExpiryFromCustomDays(days: Int) {
         val state = _uiState.value
         val productionDate = state.productionDate ?: return
+        if (days <= 0) {
+            _uiState.update { it.copy(errorMessage = "保质期天数必须大于 0") }
+            return
+        }
 
         // 到期日 = 生产日期 + (天数 - 1)，生产当天算第1天
-        val expiryDate = DateUtils.addDays(productionDate, (days - 1).coerceAtLeast(0))
+        val expiryDate = DateUtils.addDays(productionDate, days - 1)
         val matchedGroup = matchGroupByDays(days)
 
         _uiState.update {
@@ -342,13 +356,21 @@ class AddProductViewModel @Inject constructor(
         _uiState.update { it.copy(categoryId = categoryId) }
     }
 
-    fun pickImage(uri: Uri) {
+    fun pickImage(uri: Uri, temporaryFile: File? = null) {
         val context = getApplication<Application>()
         viewModelScope.launch {
+            val previousPath = _uiState.value.photoPath
             val savedPath = withContext(Dispatchers.IO) {
-                ImageUtils.saveImage(context, uri)
+                try {
+                    ImageUtils.saveImage(context, uri)
+                } finally {
+                    temporaryFile?.let { ImageUtils.deleteTemporaryCameraImage(context, it) }
+                }
             }
             if (savedPath != null) {
+                if (!previousPath.isNullOrBlank() && previousPath != savedPath) {
+                    ImageUtils.deleteImage(context, previousPath)
+                }
                 _uiState.update { it.copy(photoPath = savedPath) }
             } else {
                 _uiState.update { it.copy(errorMessage = "图片保存失败") }

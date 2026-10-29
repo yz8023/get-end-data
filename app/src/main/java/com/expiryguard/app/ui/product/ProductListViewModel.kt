@@ -3,8 +3,11 @@ package com.expiryguard.app.ui.product
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.expiryguard.app.data.db.entity.ProductEntity
+import com.expiryguard.app.data.repository.ExpiryPolicyRepository
 import com.expiryguard.app.data.repository.ProductRepository
+import com.expiryguard.app.domain.engine.ExpiryPolicy
 import com.expiryguard.app.domain.engine.ExpiryRuleEngine
+import com.expiryguard.app.util.LocalDateTicker
 import com.expiryguard.app.domain.model.ProductStatus
 import com.expiryguard.app.util.DateUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -61,11 +64,17 @@ data class ProductListUiState(
  */
 @HiltViewModel
 class ProductListViewModel @Inject constructor(
-    private val repository: ProductRepository
+    private val repository: ProductRepository,
+    private val policyRepository: ExpiryPolicyRepository,
+    private val dateTicker: LocalDateTicker
 ) : ViewModel() {
+
+    @Volatile
+    private var currentPolicy = ExpiryPolicy()
 
     private val _uiState = MutableStateFlow(ProductListUiState())
     val uiState: StateFlow<ProductListUiState> = _uiState.asStateFlow()
+    private val refreshTrigger = MutableStateFlow(0)
 
     init {
         loadProducts()
@@ -77,16 +86,26 @@ class ProductListViewModel @Inject constructor(
      */
     private fun loadProducts() {
         viewModelScope.launch {
-            repository.getAllActiveProducts()
-                .map { products ->
-                    val state = _uiState.value
-                    val today = DateUtils.todayTimestamp()
-                    state.copy(
-                        products = products,
-                        filteredProducts = applyFilter(products, state.currentFilter, state.searchQuery, today),
-                        isLoading = false
-                    )
-                }
+            combine(
+                repository.getAllActiveProducts(),
+                policyRepository.policy,
+                dateTicker.observeToday(),
+                refreshTrigger
+            ) { products, policy, today, _ ->
+                currentPolicy = policy
+                val state = _uiState.value
+                state.copy(
+                    products = products,
+                    filteredProducts = applyFilter(
+                        products,
+                        state.currentFilter,
+                        state.searchQuery,
+                        today,
+                        policy
+                    ),
+                    isLoading = false
+                )
+            }
                 .flowOn(Dispatchers.Default)
                 .collect { newState ->
                     _uiState.value = newState
@@ -101,30 +120,24 @@ class ProductListViewModel @Inject constructor(
         products: List<ProductEntity>,
         filter: ProductFilter,
         query: String,
-        today: Long
+        today: Long,
+        policy: ExpiryPolicy
     ): List<ProductEntity> {
-        // 先按筛选条件过滤
+        val statusById = products.associate { product ->
+            product.id to ExpiryRuleEngine.calculateStatus(
+                product.shelfLifeDays,
+                product.expiryDate,
+                policy,
+                today
+            )
+        }
         val filtered = when (filter) {
             ProductFilter.ALL -> products
-            ProductFilter.SAFE -> products.filter {
-                val status = ExpiryRuleEngine.calculateStatus(it.shelfLifeDays, it.expiryDate)
-                status is ProductStatus.Safe
-            }
-            ProductFilter.EXPIRING_SOON -> products.filter {
-                val status = ExpiryRuleEngine.calculateStatus(it.shelfLifeDays, it.expiryDate)
-                status is ProductStatus.ExpiringSoon
-            }
-            ProductFilter.RETURNABLE -> products.filter {
-                val status = ExpiryRuleEngine.calculateStatus(it.shelfLifeDays, it.expiryDate)
-                status is ProductStatus.Returnable
-            }
-            ProductFilter.TAKEDOWN -> products.filter {
-                val status = ExpiryRuleEngine.calculateStatus(it.shelfLifeDays, it.expiryDate)
-                status is ProductStatus.TakeDown
-            }
-            ProductFilter.EXPIRED -> products.filter {
-                DateUtils.daysBetween(today, it.expiryDate) <= 0
-            }
+            ProductFilter.SAFE -> products.filter { statusById[it.id] is ProductStatus.Safe }
+            ProductFilter.EXPIRING_SOON -> products.filter { statusById[it.id] is ProductStatus.ExpiringSoon }
+            ProductFilter.RETURNABLE -> products.filter { statusById[it.id] is ProductStatus.Returnable }
+            ProductFilter.TAKEDOWN -> products.filter { statusById[it.id] is ProductStatus.TakeDown }
+            ProductFilter.EXPIRED -> products.filter { statusById[it.id] is ProductStatus.Expired }
         }
 
         // 再按搜索关键词过滤
@@ -179,7 +192,13 @@ class ProductListViewModel @Inject constructor(
             val today = DateUtils.todayTimestamp()
             state.copy(
                 currentFilter = filter,
-                filteredProducts = applyFilter(state.products, filter, state.searchQuery, today)
+                filteredProducts = applyFilter(
+                    state.products,
+                    filter,
+                    state.searchQuery,
+                    today,
+                    currentPolicy
+                )
             )
         }
     }
@@ -192,7 +211,13 @@ class ProductListViewModel @Inject constructor(
             val today = DateUtils.todayTimestamp()
             state.copy(
                 currentFilter = filter,
-                filteredProducts = applyFilter(state.products, filter, state.searchQuery, today)
+                filteredProducts = applyFilter(
+                    state.products,
+                    filter,
+                    state.searchQuery,
+                    today,
+                    currentPolicy
+                )
             )
         }
     }
@@ -204,7 +229,13 @@ class ProductListViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.Default) {
             val state = _uiState.value
             val today = DateUtils.todayTimestamp()
-            val filtered = applyFilter(state.products, state.currentFilter, query, today)
+            val filtered = applyFilter(
+                state.products,
+                state.currentFilter,
+                query,
+                today,
+                currentPolicy
+            )
             _uiState.update {
                 it.copy(searchQuery = query, filteredProducts = filtered)
             }
@@ -326,6 +357,6 @@ class ProductListViewModel @Inject constructor(
      */
     fun refresh() {
         _uiState.update { it.copy(isLoading = true) }
-        loadProducts()
+        refreshTrigger.update { it + 1 }
     }
 }

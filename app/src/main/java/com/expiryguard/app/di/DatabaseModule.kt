@@ -2,6 +2,8 @@ package com.expiryguard.app.di
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.RoomDatabase
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.expiryguard.app.data.db.AppDatabase
 import com.expiryguard.app.data.db.dao.CategoryDao
 import com.expiryguard.app.data.db.dao.ProductDao
@@ -23,8 +25,16 @@ object DatabaseModule {
         return Room.databaseBuilder(
             context,
             AppDatabase::class.java,
-            "expiry_guard_db"
-        ).fallbackToDestructiveMigration().build()
+            AppDatabase.DATABASE_NAME
+        )
+            .addMigrations(*AppDatabase.ALL_MIGRATIONS)
+            .addCallback(object : RoomDatabase.Callback() {
+                override fun onCreate(db: SupportSQLiteDatabase) {
+                    // 同步执行，保证首次读取前默认数据已经可见。
+                    AppDatabase.seedDefaultData(db)
+                }
+            })
+            .build()
     }
 
     @Provides
@@ -39,10 +49,12 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideProductRepository(
+        @ApplicationContext context: Context,
+        db: AppDatabase,
         productDao: ProductDao,
         categoryDao: CategoryDao,
         shelfLifeGroupDao: ShelfLifeGroupDao
     ): ProductRepository {
-        return ProductRepository(productDao, categoryDao, shelfLifeGroupDao)
+        return ProductRepository(context, db, productDao, categoryDao, shelfLifeGroupDao)
     }
 }

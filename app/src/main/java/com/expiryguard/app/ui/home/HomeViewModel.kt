@@ -2,12 +2,12 @@ package com.expiryguard.app.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.intPreferencesKey
 import com.expiryguard.app.data.db.entity.ProductEntity
+import com.expiryguard.app.data.repository.ExpiryPolicyRepository
 import com.expiryguard.app.data.repository.ProductRepository
+import com.expiryguard.app.domain.engine.ExpiryPolicy
 import com.expiryguard.app.domain.engine.ExpiryRuleEngine
+import com.expiryguard.app.util.LocalDateTicker
 import com.expiryguard.app.domain.model.ProductStatus
 import com.expiryguard.app.util.DateUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -55,18 +55,16 @@ data class HomeUiState(
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val repository: ProductRepository,
-    private val dataStore: DataStore<Preferences>
+    private val policyRepository: ExpiryPolicyRepository,
+    private val dateTicker: LocalDateTicker
 ) : ViewModel() {
-
-    companion object {
-        private val KEY_TAKE_DOWN_DAYS = intPreferencesKey("take_down_days")
-    }
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+    private val refreshTrigger = MutableStateFlow(0)
 
     init {
         loadData()
@@ -83,16 +81,13 @@ class HomeViewModel @Inject constructor(
      */
     private fun loadData() {
         viewModelScope.launch {
-            // combine 监听产品数据 与 取件天数设置，任一变化时重新计算
-            // 这样修改「取件天数」后首页会立即重算「可下架」范围
             combine(
                 repository.getAllActiveProducts(),
-                dataStore.data.map { prefs -> prefs[KEY_TAKE_DOWN_DAYS] ?: 2 }
-            ) { products, takeDownDays ->
-                // 同步取件阈值到引擎，确保分组、状态计算口径一致
-                ExpiryRuleEngine.updateTakeDownThreshold(takeDownDays)
-                val today = DateUtils.todayTimestamp()
-                processProducts(products, today)
+                policyRepository.policy,
+                dateTicker.observeToday(),
+                refreshTrigger
+            ) { products, policy, today, _ ->
+                processProducts(products, today, policy)
             }
                 .flowOn(Dispatchers.Default)
                 .collect { state ->
@@ -106,10 +101,12 @@ class HomeViewModel @Inject constructor(
      * 处理清单列表并更新 UI 状态
      * 在 Default 线程执行，主线程只负责接收结果
      */
-    private fun processProducts(products: List<ProductEntity>, today: Long): HomeUiState {
-        // 统一口径分组（与启动通知一致）—— 使用引擎静态阈值，确保与设置页同步
-        val takeDownThreshold = ExpiryRuleEngine.takeDownThreshold
-        val groups = ExpiryRuleEngine.computePendingGroups(products, today, takeDownThreshold)
+    private fun processProducts(
+        products: List<ProductEntity>,
+        today: Long,
+        policy: ExpiryPolicy
+    ): HomeUiState {
+        val groups = ExpiryRuleEngine.computePendingGroups(products, today, policy)
 
         // 今日到期（含可下架、可退货、已过期）—— 合并去重
         val todayWithReturnable = (groups.todayExpiry + groups.takeDown + groups.returnable + groups.expired).distinctBy { it.id }
@@ -123,7 +120,12 @@ class HomeViewModel @Inject constructor(
             if (!product.isCompleted) return@filter false
             val days = DateUtils.daysBetween(today, product.expiryDate)
             if (days <= 1) return@filter true
-            val status = ExpiryRuleEngine.calculateStatus(product.shelfLifeDays, product.expiryDate)
+            val status = ExpiryRuleEngine.calculateStatus(
+                product.shelfLifeDays,
+                product.expiryDate,
+                policy,
+                today
+            )
             status is ProductStatus.Returnable || status is ProductStatus.TakeDown
         }.sortedByDescending { it.completedAt ?: 0L }
         val takeDownCompleted = completed.filter {
@@ -134,7 +136,7 @@ class HomeViewModel @Inject constructor(
         // 但「仅下架」（见上方 takeDownCompleted）不受此限制，持续显示。
         val processedCompleted = completed.filter {
             it.completedType != ProductEntity.COMPLETED_TYPE_TAKE_DOWN &&
-                DateUtils.isToday(it.completedAt ?: 0L)
+                DateUtils.isToday(it.completedAt ?: 0L, DateUtils.toLocalDate(today))
         }
 
         // 待处理：剩下的未完成清单（排除今日到期、可退货、预警）
@@ -169,6 +171,7 @@ class HomeViewModel @Inject constructor(
      */
     fun refresh() {
         _isRefreshing.value = true
+        refreshTrigger.update { it + 1 }
     }
 
     /**

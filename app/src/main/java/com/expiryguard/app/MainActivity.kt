@@ -4,26 +4,32 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Surface
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.lifecycle.lifecycleScope
+import com.expiryguard.app.data.repository.ExpiryPolicyRepository
 import com.expiryguard.app.data.repository.ProductRepository
+import com.expiryguard.app.domain.engine.ExpiryPolicy
 import com.expiryguard.app.domain.engine.ExpiryRuleEngine
 import com.expiryguard.app.navigation.AppNavigation
+import com.expiryguard.app.ui.LocalExpiryPolicy
+import com.expiryguard.app.ui.LocalExpiryToday
+import com.expiryguard.app.util.LocalDateTicker
 import com.expiryguard.app.notification.NotificationHelper
 import com.expiryguard.app.notification.ReminderScheduler
 import com.expiryguard.app.ui.theme.ExpiryGuardTheme
 import com.expiryguard.app.util.DateUtils
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -37,7 +43,12 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var repository: ProductRepository
 
-    private val KEY_DARK_MODE = booleanPreferencesKey("dark_mode_enabled")
+    @Inject
+    lateinit var policyRepository: ExpiryPolicyRepository
+
+    @Inject
+    lateinit var dateTicker: LocalDateTicker
+
     private val KEY_NOTIFICATION_ENABLED = booleanPreferencesKey("notification_enabled")
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -51,16 +62,19 @@ class MainActivity : ComponentActivity() {
         // 查询与过滤在 IO 线程执行，避免阻塞首帧渲染
         lifecycleScope.launch {
             try {
-                val notificationEnabled = withContext(Dispatchers.IO) {
-                    dataStore.data.first()[KEY_NOTIFICATION_ENABLED] ?: true
-                }
+                val preferences = withContext(Dispatchers.IO) { dataStore.data.first() }
+                val notificationEnabled = preferences[KEY_NOTIFICATION_ENABLED] ?: true
                 if (notificationEnabled) {
                     withContext(Dispatchers.IO) {
                         val products = repository.getAllActiveProducts().first()
                         val today = DateUtils.todayTimestamp()
 
                         // 统一口径计算待办分组（与首页今日待办一致）
-                        val groups = ExpiryRuleEngine.computePendingGroups(products, today)
+                        val groups = ExpiryRuleEngine.computePendingGroups(
+                            products = products,
+                            today = today,
+                            policy = policyRepository.current()
+                        )
 
                         // 待处理总数量（今日到期 + 可下架 + 可退货 + 已过期 + 预警，已去重）
                         val pendingCount = groups.totalCount
@@ -79,23 +93,24 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (_: Exception) {
                 // 忽略启动时的通知错误
             }
         }
 
-        val darkModeFlow = dataStore.data.map { preferences ->
-            preferences[KEY_DARK_MODE] ?: false
-        }
-
         setContent {
-            val isDarkMode by darkModeFlow.collectAsState(initial = false)
-
-            ExpiryGuardTheme(
-                darkTheme = isDarkMode
+            val policy by policyRepository.policy.collectAsState(initial = ExpiryPolicy())
+            val today by dateTicker.observeToday().collectAsState(initial = DateUtils.todayTimestamp())
+            CompositionLocalProvider(
+                LocalExpiryPolicy provides policy,
+                LocalExpiryToday provides today
             ) {
-                Surface(modifier = Modifier.fillMaxSize()) {
-                    AppNavigation()
+                ExpiryGuardTheme {
+                    Surface(modifier = Modifier.fillMaxSize()) {
+                        AppNavigation()
+                    }
                 }
             }
         }

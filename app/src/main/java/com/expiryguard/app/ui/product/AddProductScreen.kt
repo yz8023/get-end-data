@@ -74,6 +74,7 @@ import com.expiryguard.app.ui.theme.Gray500
 import com.expiryguard.app.ui.theme.Green500
 import com.expiryguard.app.ui.theme.Red500
 import com.expiryguard.app.util.DateUtils
+import com.expiryguard.app.util.ImageUtils
 import java.io.File
 
 /**
@@ -117,12 +118,19 @@ fun AddProductScreen(
 
     // 相机拍照 Launcher
     var cameraImageUri by remember { mutableStateOf<Uri?>(null) }
+    var cameraImageFile by remember { mutableStateOf<File?>(null) }
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
-        if (success && cameraImageUri != null) {
-            viewModel.pickImage(cameraImageUri!!)
+        val uri = cameraImageUri
+        val temporaryFile = cameraImageFile
+        if (success && uri != null) {
+            viewModel.pickImage(uri, temporaryFile)
+        } else {
+            temporaryFile?.delete()
         }
+        cameraImageUri = null
+        cameraImageFile = null
     }
 
     // 相册选择 Launcher
@@ -137,10 +145,11 @@ fun AddProductScreen(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) {
-            val photoFile = File.createTempFile("photo_", ".jpg", context.cacheDir)
+            val photoFile = ImageUtils.createCameraImageFile(context)
             val uri = FileProvider.getUriForFile(
                 context, "${context.packageName}.fileprovider", photoFile
             )
+            cameraImageFile = photoFile
             cameraImageUri = uri
             cameraLauncher.launch(uri)
         } else {
@@ -211,10 +220,11 @@ fun AddProductScreen(
                                 context, Manifest.permission.CAMERA
                             ) == PackageManager.PERMISSION_GRANTED
                             if (hasCameraPermission) {
-                                val photoFile = File.createTempFile("photo_", ".jpg", context.cacheDir)
+                                val photoFile = ImageUtils.createCameraImageFile(context)
                                 val uri = FileProvider.getUriForFile(
                                     context, "${context.packageName}.fileprovider", photoFile
                                 )
+                                cameraImageFile = photoFile
                                 cameraImageUri = uri
                                 cameraLauncher.launch(uri)
                             } else {

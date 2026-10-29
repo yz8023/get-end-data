@@ -10,6 +10,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +35,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
@@ -44,15 +46,21 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.expiryguard.app.data.backup.RestoreMode
 import com.expiryguard.app.ui.components.GlassTopAppBar
 import com.expiryguard.app.ui.components.GradientBackground
+import com.expiryguard.app.ui.liquid.components.GlassDialog
 import com.expiryguard.app.ui.liquid.components.Meter
 import com.expiryguard.app.ui.liquid.components.PreferenceCard
 import com.expiryguard.app.ui.liquid.components.PrimaryButton
@@ -85,8 +93,16 @@ fun BackupRestoreScreen(
     val errorMessage by viewModel.errorMessage.collectAsState()
     val successMessage by viewModel.successMessage.collectAsState()
     val lastBackupTime by viewModel.lastBackupTime.collectAsState()
+    val pendingRecoveryCode by viewModel.pendingRecoveryCode.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
+    var showOverwriteConfirm by remember { mutableStateOf(false) }
+    var backupPassword by remember { mutableStateOf("") }
+    var backupPasswordConfirm by remember { mutableStateOf("") }
+    var backupCredentialError by remember { mutableStateOf<String?>(null) }
+    var pendingRestoreUri by remember { mutableStateOf<Uri?>(null) }
+    var restorePassword by remember { mutableStateOf("") }
+    var restoreRecoveryCode by remember { mutableStateOf("") }
 
     // 处理成功/错误消息显示
     LaunchedEffect(successMessage, errorMessage) {
@@ -100,12 +116,23 @@ fun BackupRestoreScreen(
         }
     }
 
+    // SAF 创建文档：备份目的地由用户明确选择，支持 API 26–28。
+    val backupCreateLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/octet-stream")
+    ) { uri: Uri? ->
+        uri?.let {
+            viewModel.backupData(it, backupPassword.toCharArray())
+            backupPassword = ""
+            backupPasswordConfirm = ""
+        }
+    }
+
     // SAF 文件选择器 - 用于选择备份文件进行恢复
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         if (uri != null) {
-            viewModel.restoreData(uri)
+            pendingRestoreUri = uri
         }
     }
 
@@ -179,7 +206,7 @@ fun BackupRestoreScreen(
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Text(
-                            text = "将所有产品数据连同图片一起打包备份到 Download 目录",
+                            text = "将产品、回收站、分类、分组和图片打包；点击后通过系统文件选择器明确选择保存位置",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                             textAlign = TextAlign.Center
@@ -224,9 +251,62 @@ fun BackupRestoreScreen(
                             }
                         }
 
+                        Text(
+                            text = "新备份强制使用 AES-GCM 加密。密码至少 8 位；成功后还会生成只显示一次的恢复密钥，密码或恢复密钥均可跨设备恢复。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = backupPassword,
+                            onValueChange = { backupPassword = it; backupCredentialError = null },
+                            label = { Text("备份密码（至少 8 位）") },
+                            singleLine = true,
+                            visualTransformation = PasswordVisualTransformation(),
+                            enabled = !isBackingUp && !isRestoring,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = backupPasswordConfirm,
+                            onValueChange = { backupPasswordConfirm = it; backupCredentialError = null },
+                            label = { Text("确认备份密码") },
+                            singleLine = true,
+                            visualTransformation = PasswordVisualTransformation(),
+                            enabled = !isBackingUp && !isRestoring,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        backupCredentialError?.let {
+                            Text(
+                                text = it,
+                                color = Red500,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+
                         // 备份按钮
                         PrimaryButton(
-                            onClick = { viewModel.backupData() },
+                            onClick = {
+                                when {
+                                    backupPassword.length < 8 -> {
+                                        backupCredentialError = "请设置至少 8 位的备份密码"
+                                    }
+                                    backupPassword != backupPasswordConfirm -> {
+                                        backupCredentialError = "两次输入的备份密码不一致"
+                                    }
+                                    else -> {
+                                        backupCredentialError = null
+                                        val timestamp = java.text.SimpleDateFormat(
+                                            "yyyyMMdd_HHmmss",
+                                            java.util.Locale.US
+                                        ).format(java.util.Date())
+                                        backupCreateLauncher.launch("ExpiryGuard_Backup_$timestamp.expiryguard")
+                                    }
+                                }
+                            },
                             enabled = !isBackingUp && !isRestoring,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -319,7 +399,11 @@ fun BackupRestoreScreen(
                         // 选择备份文件按钮
                         SecondaryButton(
                             onClick = {
-                                filePickerLauncher.launch(arrayOf("application/octet-stream", "*/*"))
+                                if (viewModel.restoreMode.value == RestoreMode.OVERWRITE) {
+                                    showOverwriteConfirm = true
+                                } else {
+                                    filePickerLauncher.launch(arrayOf("application/octet-stream", "*/*"))
+                                }
                             },
                             enabled = !isBackingUp && !isRestoring,
                             modifier = Modifier
@@ -356,7 +440,7 @@ fun BackupRestoreScreen(
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            text = "增量恢复：验证哈希值，跳过已存在的重复数据，保留现有内容。覆盖恢复：清空当前所有数据后恢复备份。如果备份中包含大量图片，恢复过程可能需要一些时间。",
+                            text = "增量恢复按稳定 UUID 跳过重复记录并保留现有数据；覆盖恢复会在确认后替换全部记录。恢复在数据库事务中执行，失败不会留下半份数据。新备份使用密码和恢复密钥双重保护的加密容器，仍请勿分享给不可信对象。",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
                             lineHeight = MaterialTheme.typography.bodySmall.lineHeight
@@ -369,7 +453,97 @@ fun BackupRestoreScreen(
             }
         }
     }
+
+    if (showOverwriteConfirm) {
+        GlassDialog(
+            onDismissRequest = { showOverwriteConfirm = false },
+            title = "确认覆盖恢复？",
+            onConfirm = {
+                showOverwriteConfirm = false
+                filePickerLauncher.launch(arrayOf("application/octet-stream", "*/*"))
+            },
+            confirmText = "选择文件并覆盖",
+            dismissText = "取消"
+        ) {
+            Text(
+                text = "覆盖恢复将替换当前全部产品、分类、分组和回收站记录。建议先创建备份；恢复失败会回滚数据库。",
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+    }
+
+    pendingRestoreUri?.let { uri ->
+        GlassDialog(
+            onDismissRequest = {
+                pendingRestoreUri = null
+                restorePassword = ""
+                restoreRecoveryCode = ""
+            },
+            title = "输入备份凭据",
+            onConfirm = {
+                val password = if (restorePassword.isEmpty()) null else restorePassword.toCharArray()
+                viewModel.restoreData(
+                    uri = uri,
+                    password = password,
+                    recoveryCode = restoreRecoveryCode.ifBlank { null }
+                )
+                pendingRestoreUri = null
+                restorePassword = ""
+                restoreRecoveryCode = ""
+            },
+            confirmText = "开始恢复",
+            dismissText = "取消"
+        ) {
+            Text(
+                text = "加密备份请输入备份密码或恢复密钥（任选其一）；旧版明文备份可全部留空。覆盖恢复仍会在凭据验证成功后执行。",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            OutlinedTextField(
+                value = restorePassword,
+                onValueChange = { restorePassword = it },
+                label = { Text("备份密码") },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
+                value = restoreRecoveryCode,
+                onValueChange = { restoreRecoveryCode = it },
+                label = { Text("恢复密钥（可带连字符）") },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+
+    pendingRecoveryCode?.let { code ->
+        GlassDialog(
+            // 必须明确确认已保存，避免用户误触返回后永久失去恢复凭据。
+            onDismissRequest = {},
+            title = "立即保存恢复密钥",
+            onConfirm = viewModel::acknowledgeRecoveryCode,
+            confirmText = "我已安全保存",
+            dismissText = null
+        ) {
+            Text(
+                text = "此密钥只显示一次，不会写入应用设置或日志。忘记备份密码时可用它恢复；请离线保存，不要上传到聊天或云笔记。",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            SelectionContainer {
+                Text(
+                    text = formatRecoveryCode(code),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+    }
 }
+
+private fun formatRecoveryCode(code: String): String = code.chunked(4).joinToString("-")
 
 /**
  * 恢复模式单选选择器

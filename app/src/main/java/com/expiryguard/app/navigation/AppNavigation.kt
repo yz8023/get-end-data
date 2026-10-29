@@ -193,18 +193,26 @@ fun AppNavigation() {
 
     // ========== 相机相关状态与 Launcher ==========
     var cameraImageUri by remember { mutableStateOf<Uri?>(null) }
+    var cameraImageFile by remember { mutableStateOf<File?>(null) }
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     val cameraScope = lifecycleOwner.lifecycleScope
 
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
-        if (success && cameraImageUri != null) {
-            val uri = cameraImageUri!!
-            // 压缩保存在 IO 线程执行，避免阻塞主线程
+        val uri = cameraImageUri
+        val temporaryFile = cameraImageFile
+        if (success && uri != null) {
+            // 压缩保存在 IO 线程执行，避免阻塞主线程；无论成败都删除相机原图。
             cameraScope.launch(Dispatchers.IO) {
-                val savedPath = ImageUtils.saveImage(context, uri)
+                val savedPath = try {
+                    ImageUtils.saveImage(context, uri)
+                } finally {
+                    temporaryFile?.let { ImageUtils.deleteTemporaryCameraImage(context, it) }
+                }
                 withContext(Dispatchers.Main) {
+                    cameraImageUri = null
+                    cameraImageFile = null
                     val route = if (savedPath != null) {
                         "add_product?photoPath=${Uri.encode(savedPath)}"
                     } else {
@@ -214,6 +222,9 @@ fun AppNavigation() {
                 }
             }
         } else {
+            temporaryFile?.let { ImageUtils.deleteTemporaryCameraImage(context, it) }
+            cameraImageUri = null
+            cameraImageFile = null
             navController.navigate(Screen.AddProduct.route)
         }
     }
@@ -222,11 +233,12 @@ fun AppNavigation() {
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) {
-            val photoFile = File.createTempFile("photo_", ".jpg", context.cacheDir)
+            val photoFile = ImageUtils.createCameraImageFile(context)
             val uri = FileProvider.getUriForFile(
                 context, "${context.packageName}.fileprovider", photoFile
             )
             cameraImageUri = uri
+            cameraImageFile = photoFile
             cameraLauncher.launch(uri)
         } else {
             Toast.makeText(context, "需要相机权限才能拍照", Toast.LENGTH_SHORT).show()
@@ -239,11 +251,12 @@ fun AppNavigation() {
             context, Manifest.permission.CAMERA
         ) == PackageManager.PERMISSION_GRANTED
         if (hasCameraPermission) {
-            val photoFile = File.createTempFile("photo_", ".jpg", context.cacheDir)
+            val photoFile = ImageUtils.createCameraImageFile(context)
             val uri = FileProvider.getUriForFile(
                 context, "${context.packageName}.fileprovider", photoFile
             )
             cameraImageUri = uri
+            cameraImageFile = photoFile
             cameraLauncher.launch(uri)
         } else {
             permissionLauncher.launch(Manifest.permission.CAMERA)

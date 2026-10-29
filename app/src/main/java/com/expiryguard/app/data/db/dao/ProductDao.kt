@@ -45,6 +45,10 @@ interface ProductDao {
     @Query("SELECT * FROM products WHERE deletedAt IS NULL ORDER BY expiryDate ASC")
     fun getAllActiveProducts(): Flow<List<ProductEntity>>
 
+    /** 备份使用的单事务快照，包含回收站记录。 */
+    @Query("SELECT * FROM products ORDER BY id ASC")
+    suspend fun getAllProductsSnapshot(): List<ProductEntity>
+
     /**
      * 根据分类 ID 获取未删除的产品
      */
@@ -78,7 +82,7 @@ interface ProductDao {
     /**
      * 按月统计到期数量
      */
-    @Query("SELECT strftime('%Y-%m', expiryDate / 1000, 'unixepoch') AS month, COUNT(*) AS count FROM products WHERE deletedAt IS NULL AND expiryDate > 0 GROUP BY month ORDER BY month ASC")
+    @Query("SELECT strftime('%Y-%m', expiryDate / 1000, 'unixepoch', 'localtime') AS month, COUNT(*) AS count FROM products WHERE deletedAt IS NULL AND expiryDate > 0 GROUP BY month ORDER BY month ASC")
     fun getExpiryDistribution(): Flow<List<ExpiryCount>>
 
     /**
@@ -96,14 +100,26 @@ interface ProductDao {
     /**
      * 插入产品，返回自增 ID
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(product: ProductEntity): Long
 
     /**
      * 批量插入产品，用于恢复数据
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertAll(products: List<ProductEntity>)
+
+    @Query("SELECT photoPath FROM products WHERE id IN (:ids) AND photoPath IS NOT NULL")
+    suspend fun getPhotoPathsForIds(ids: List<Long>): List<String>
+
+    @Query("SELECT COUNT(*) FROM products WHERE photoPath = :path")
+    suspend fun countPhotoReferences(path: String): Int
+
+    @Query("SELECT photoPath FROM products WHERE id = :id")
+    suspend fun getPhotoPath(id: Long): String?
+
+    @Query("UPDATE products SET categoryId = NULL WHERE categoryId = :categoryId")
+    suspend fun clearCategory(categoryId: Long)
 
     /**
      * 更新产品
@@ -134,6 +150,10 @@ suspend fun permanentDelete(ids: List<Long>)
  */
 @Query("DELETE FROM products WHERE deletedAt IS NULL")
 suspend fun permanentDeleteAllActive()
+
+/** 覆盖恢复使用，包含回收站；必须只在数据库事务中调用。 */
+@Query("DELETE FROM products")
+suspend fun permanentDeleteAll()
 
     /**
      * 批量更新产品备注
