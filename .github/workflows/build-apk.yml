@@ -15,6 +15,7 @@ jobs:
   verify:
     name: Unit tests, lint and debug build
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -28,7 +29,7 @@ jobs:
       - name: Grant Gradle wrapper execute permission
         run: chmod +x gradlew
       - name: Verify
-        run: ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon --max-workers=2
+        run: ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon --no-parallel --console=plain --max-workers=2
       - name: Upload debug APK
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
