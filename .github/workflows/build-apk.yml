@@ -68,7 +68,7 @@ jobs:
     permissions:
       contents: write
     env:
-      EXPIRYGUARD_KEYSTORE: ${{ runner.temp }}/expiryguard-release.jks
+      EXPIRYGUARD_KEYSTORE: ${{ github.workspace }}/expiryguard-release.jks
       EXPIRYGUARD_KEYSTORE_BASE64: ${{ secrets.EXPIRYGUARD_KEYSTORE_BASE64 }}
       EXPIRYGUARD_STORE_PASSWORD: ${{ secrets.EXPIRYGUARD_STORE_PASSWORD }}
       EXPIRYGUARD_KEY_PASSWORD: ${{ secrets.EXPIRYGUARD_KEY_PASSWORD }}
